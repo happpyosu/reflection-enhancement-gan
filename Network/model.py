@@ -48,8 +48,6 @@ class ReflectionGAN:
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train")
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
-    # tf.function装饰器可以将自动跟踪被修饰函数里的计算图，实现自动静态图生成（autograph）,用于提高计算速度（~10倍左右）和
-    # 部署。有关 tf.function 静态图编译, 请参考 https://tensorflow.google.cn/api_docs/python/tf/function?hl=en
     @tf.function
     def train_D(self, t, r, m, which_D=1):
         """
@@ -85,7 +83,6 @@ class ReflectionGAN:
             real_score1, real_score2 = D(m, training=True)
             fake_score1, fake_score2 = D(fake_m, training=True)
 
-            # (to 小婷) 请不要把这一行分成两行（加回车），尽管他们太长了，autograph会报warning
             loss1 = tf.reduce_mean((real_score1 - tf.ones_like(real_score1)) ** 2) + tf.reduce_mean((fake_score1 - tf.zeros_like(fake_score1)) ** 2)
             loss2 = tf.reduce_mean((real_score2 - tf.ones_like(real_score2)) ** 2) + tf.reduce_mean((fake_score2 - tf.zeros_like(fake_score2)) ** 2)
 
