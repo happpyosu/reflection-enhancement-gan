@@ -60,10 +60,17 @@ class ReflectionGAN:
         t1, t2 = tf.split(t, 2, 0)
         r1, r2 = tf.split(r, 2, 0)
         m1, m2 = tf.split(m, 2, 0)
-        with tf.GradientTape() as d1_tape, tf.GradientTape() as d2_tape, tf.GradientTape() as G_tape, tf.GradientTape() as E_tape:
+        with tf.GradientTape(False) as d1_tape, tf.GradientTape(False) as d2_tape, \
+                tf.GradientTape(False) as G_tape, tf.GradientTape(False) as E_tape:
+
+            # some concat images.
+            cat_tr_VAE = tf.concat([t1, r1], axis=3)
+            cat_tr_LR = tf.concat([t2, r2], axis=3)
+            cat_trm_VAE = tf.concat([cat_tr_LR, m1], axis=3)
+            cat_trm_LR = tf.concat([cat_tr_LR, m2], axis=3)
+
             # step 1. ----------------------Train D1----------------------
-            cat_trm = tf.concat([t1, r1, m1], axis=3)
-            mu, log_var = self.E(cat_trm, training=True)
+            mu, log_var = self.E(cat_trm_VAE, training=True)
             std = tf.math.exp(log_var / 2)
 
             # encode the noise vector and tile to an image
@@ -71,11 +78,12 @@ class ReflectionGAN:
             z = (z * std) + mu
             z = tf.tile(z, [1, self.img_size, self.img_size, 1])
 
-            cat_trn = tf.concat([t1, r1, z], axis=3)
-            fake_m_VAE = self.G(cat_trn, training=True)
+            cat_trn_VAE = tf.concat([cat_tr_VAE, z], axis=3)
+            fake_m_VAE = self.G(cat_trn_VAE, training=True)
+
+            # D1 outputs 1 if fed with real image, else 0
             real_score1, real_score2 = self.D1(m1, training=True)
             fake_score1, fake_score2 = self.D1(fake_m_VAE, training=True)
-
             D1_loss1 = tf.reduce_mean((real_score1 - tf.ones_like(real_score1)) ** 2, keepdims=True) + tf.reduce_mean(
                 (fake_score1 - tf.zeros_like(fake_score1)) ** 2, keepdims=True)
             D1_loss2 = tf.reduce_mean((real_score2 - tf.ones_like(real_score2)) ** 2, keepdims=True) + tf.reduce_mean(
@@ -90,12 +98,57 @@ class ReflectionGAN:
             z = tf.tile(z, [1, self.img_size, self.img_size, 1])
 
             # generate fake images
-            cat_trn = tf.concat([t2, r2, z], axis=3)
-            fake_m_LR = self.G(cat_trn, training=True)
+            cat_trn_LR = tf.concat([cat_tr_LR, z], axis=3)
+            fake_m_LR = self.G(cat_trn_LR, training=True)
 
             # get score on real and fake images
             real_score1, real_score2 = self.D2(m2)
             fake_score1, fake_score2 = self.D2(fake_m_LR)
+
+            D2_loss1 = tf.reduce_mean((real_score1 - tf.ones_like(real_score1)) ** 2, keepdims=True) + tf.reduce_mean(
+                (fake_score1 - tf.zeros_like(fake_score1)) ** 2, keepdims=True)
+            D2_loss2 = tf.reduce_mean((real_score2 - tf.ones_like(real_score2)) ** 2, keepdims=True) + tf.reduce_mean(
+                (fake_score2 - tf.zeros_like(fake_score2)) ** 2, keepdims=True)
+
+            # D2 total loss
+            D2_Loss = D2_loss1 + D2_loss2
+
+            # update D1 and D2
+            grad_D1 = d1_tape.gradient(D1_Loss, self.D1.trainable_variables)
+            grad_D2 = d2_tape.gradient(D2_Loss, self.D2.trainable_variables)
+            self.optimizer_D1.apply_gradients(zip(grad_D1, self.D1.trainable_variables))
+            self.optimizer_D2.apply_gradients(zip(grad_D2, self.D2.trainable_variables))
+
+            # step 3. ---------------------- Train G to fool the discriminators ----------------------
+            # get the encoded z from Encoder.
+            mu, var = self.E(cat_trm_VAE)
+            z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
+            z = (z * std) + mu
+            z = tf.tile(z, [1, self.img_size, self.img_size, 1])
+
+            cat_trn_VAE = tf.concat([cat_tr_VAE, z], axis=3)
+            fake_m_VAE = self.G(cat_trm_VAE, training=True)
+            fake_D1_1, fake_D1_2 = self.D1(fake_m_VAE)
+            GAN_loss_cVAE_1 = tf.reduce_mean((fake_D1_1 - tf.ones_like(fake_D1_1)) ** 2, keepdims=True)
+            GAN_loss_cVAE_2 = tf.reduce_mean((fake_D1_2 - tf.ones_like(fake_D1_2)) ** 2, keepdims=True)
+
+            # get an prior noise from gaussian distribution.
+            z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
+            z = tf.tile(z, [1, self.img_size, self.img_size, 1])
+
+            cat_trn_LR = tf.concat([cat_tr_LR, z], axis=3)
+            fake_m_LR = self.G(cat_trn_LR, training=True)
+            fake_D2_1, fake_D2_2 = self.D2(fake_m_LR)
+
+            GAN_loss_cLR_1 = tf.reduce_mean((fake_D2_1 - tf.ones_like(fake_D2_1)) ** 2, keepdims=True)
+            GAN_loss_cLR_2 = tf.reduce_mean((fake_D2_2 - tf.ones_like(fake_D2_2)) ** 2, keepdims=True)
+
+            # gan loss for G
+            G_GAN_Loss = GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2
+
+            # todo
+            # KL-divergence loss for G and E
+
 
 
 
