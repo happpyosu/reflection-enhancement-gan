@@ -60,8 +60,16 @@ class ReflectionGAN:
         t1, t2 = tf.split(t, 2, 0)
         r1, r2 = tf.split(r, 2, 0)
         m1, m2 = tf.split(m, 2, 0)
-        with tf.GradientTape(False) as d1_tape, tf.GradientTape(False) as d2_tape, \
-                tf.GradientTape(False) as G_tape, tf.GradientTape(False) as E_tape:
+        with tf.GradientTape(watch_accessed_variables=False) as d1_tape, \
+                tf.GradientTape(watch_accessed_variables=False) as d2_tape, \
+                tf.GradientTape(watch_accessed_variables=False, persistent=True) as G_tape, \
+                tf.GradientTape(watch_accessed_variables=False, persistent=True) as E_tape:
+
+            # watch model
+            d1_tape.watch(self.D1.trainable_variables)
+            d2_tape.watch(self.D2.trainable_variables)
+            G_tape.watch(self.G.trainable_variables)
+            E_tape.watch(self.E.trainable_variables)
 
             # some concat images.
             cat_tr_VAE = tf.concat([t1, r1], axis=3)
@@ -133,8 +141,8 @@ class ReflectionGAN:
             GAN_loss_cVAE_2 = tf.reduce_mean((fake_D1_2 - tf.ones_like(fake_D1_2)) ** 2, keepdims=True)
 
             # get an prior noise from gaussian distribution.
-            z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
-            z = tf.tile(z, [1, self.img_size, self.img_size, 1])
+            random_z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
+            z = tf.tile(random_z, [1, self.img_size, self.img_size, 1])
 
             cat_trn_LR = tf.concat([cat_tr_LR, z], axis=3)
             fake_m_LR = self.G(cat_trn_LR, training=True)
@@ -146,8 +154,33 @@ class ReflectionGAN:
             # gan loss for G
             G_GAN_Loss = GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2
 
-            # todo
             # KL-divergence loss for G and E
+            KL_div = 0.01 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1), keepdims=True)
+
+            # step. 4. Reconstruct of ground truth image
+            img_recon_loss = 1 * tf.reduce_mean(tf.abs(fake_m_VAE - m1), keepdims=True)
+
+            # total loss for Encoder and Generator
+            E_G_Loss = G_GAN_Loss + KL_div + img_recon_loss
+
+            # update E and G
+            E_grad = E_tape.gradient(E_G_Loss, self.E.trainable_variables)
+            G_grad = G_tape.gradient(E_G_Loss, self.G.trainable_variables)
+            self.optimizer_E.apply_gradients(zip(E_grad, self.E.trainable_variables))
+            self.optimizer_G.apply_gradients(zip(G_grad, self.G.trainable_variables))
+
+            # step 5. ---------------------- Train G to reconstruct the latent code z ----------------------
+            cat_trm_fake = tf.concat([cat_tr_LR, fake_m_LR], axis=3)
+            mu_, var_ = self.E(cat_trm_fake, training=True)
+            z_recon_Loss = 0.5 * tf.reduce_mean(tf.abs(random_z - mu_), keepdims=True)
+
+            # update G
+            grad_G = G_tape.gradient(z_recon_Loss, self.G.trainable_variables)
+            self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
+
+            # step 6. ---------------------- Mode seeking term (optional) -----------------------
+            # Do nothing
+
 
 
 
