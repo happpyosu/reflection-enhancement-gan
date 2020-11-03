@@ -1,9 +1,12 @@
 import tensorflow as tf
+import sys
+sys.path.append('../Dataset')
+sys.path.append('../utils')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
-import matplotlib.pyplot as plt
 from utils.imageUtils import ImageUtils
 from utils import gpuutils
+
 
 class ReflectionGAN:
     """
@@ -253,6 +256,6 @@ class ReflectionGAN:
 
 
 if __name__ == '__main__':
-    gpuutils.which_gpu_to_use(0)
+    gpuutils.which_gpu_to_use(1)
     gan = ReflectionGAN()
     gan.start_train_task()
