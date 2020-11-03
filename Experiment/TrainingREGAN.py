@@ -1,6 +1,6 @@
 import tensorflow as tf
 import sys
-sys.path.append('./')
+sys.path.append('../')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
 from utils.imageUtils import ImageUtils
