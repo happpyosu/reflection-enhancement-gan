@@ -38,6 +38,10 @@ class ReflectionGAN:
         self.G = Network.build_generator(img_size=self.img_size, noise_dim=self.noise_dim)
         self.E = Network.build_encoder(img_size=self.img_size, noise_dim=self.noise_dim)
 
+        # dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train")
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
         # lr decay
         lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=0.001,
                                                                      decay_steps=self.epoch * len(
@@ -50,10 +54,6 @@ class ReflectionGAN:
         self.optimizer_D2 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
         self.optimizer_G = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
         self.optimizer_E = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-
-        # dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train")
-        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # config logging
         self.inc = 0
