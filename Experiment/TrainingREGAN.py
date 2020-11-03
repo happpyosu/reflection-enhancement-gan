@@ -36,16 +36,18 @@ class ReflectionGAN:
         self.G = Network.build_generator(img_size=self.img_size, noise_dim=self.noise_dim)
         self.E = Network.build_encoder(img_size=self.img_size, noise_dim=self.noise_dim)
 
-        # optimizer
-        self.optimizer_D1 = tf.keras.optimizers.Adam(lr=1e-4, beta_1=0.5)
-        self.optimizer_D2 = tf.keras.optimizers.Adam(lr=1e-4, beta_1=0.5)
-        self.optimizer_G = tf.keras.optimizers.Adam(lr=1e-4, beta_1=0.5)
-        self.optimizer_E = tf.keras.optimizers.Adam(lr=1e-4, beta_1=0.5)
-
         # lr decay
-        self.lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=2e-4,
-                                                                          decay_steps=100,
-                                                                          decay_rate=0.5)
+        lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=0.001,
+                                                                     decay_steps=self.epoch * len(
+                                                                         self.train_dataset // 2),
+                                                                     decay_rate=1,
+                                                                     staircase=False)
+
+        # optimizer
+        self.optimizer_D1 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
+        self.optimizer_D2 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
+        self.optimizer_G = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
+        self.optimizer_E = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
 
         # dataset
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train")
@@ -83,7 +85,7 @@ class ReflectionGAN:
                 img_list.append(out)
             img_lists.append(img_list)
 
-        ImageUtils.plot_images(rows, cols+3, img_lists, is_save=True, epoch_index=self.inc)
+        ImageUtils.plot_images(rows, cols + 3, img_lists, is_save=True, epoch_index=self.inc)
 
     def start_train_task(self):
         self.inc = 0
