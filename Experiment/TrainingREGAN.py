@@ -49,10 +49,10 @@ class ReflectionGAN:
                                                                      staircase=False)
 
         # optimizer
-        self.optimizer_D1 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_D2 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_G = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_E = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
+        self.optimizer_D1 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_D2 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_G = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_E = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
 
         # config logging
         self.inc = 0
