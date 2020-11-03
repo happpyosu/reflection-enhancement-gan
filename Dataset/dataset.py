@@ -27,7 +27,7 @@ class _RealDataset:
             @Date:   2020.5.8
     """
 
-    def __init__(self, root='../dataset_root/', batch_size=2, mode='train'):
+    def __init__(self, root='../dataset-root/', batch_size=2, mode='train'):
         """
 
         :param root: the dataset root to the images that used to train the reflection image generator
@@ -39,6 +39,10 @@ class _RealDataset:
         self.t_dir = root + mode + '/t/'
         self.m_dir = root + mode + '/m/'
         self.batch_size = batch_size
+
+        # set batch-size to 1 if the model is in val mode.
+        if mode == 'val':
+            self.batch_size = 1
 
         if set(os.listdir(self.r_dir)) != set(os.listdir(self.t_dir)):
             raise ValueError("the reflection image (R) files in the path: " + self.r_dir +
@@ -53,7 +57,7 @@ class _RealDataset:
         self._tf_dataset = tf.data.Dataset. \
             from_tensor_slices(self.file_list). \
             map(self._map_fun, tf.data.experimental.AUTOTUNE). \
-            batch(batch_size=batch_size, drop_remainder=True).shuffle(50, reshuffle_each_iteration=True)
+            batch(batch_size=self.batch_size, drop_remainder=True).shuffle(50, reshuffle_each_iteration=True)
 
     def __len__(self):
         return len(self.file_list)
