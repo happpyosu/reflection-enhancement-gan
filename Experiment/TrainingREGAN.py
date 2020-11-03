@@ -2,6 +2,7 @@ import tensorflow as tf
 import sys
 sys.path.append('../Dataset')
 sys.path.append('../utils')
+sys.path.append('../Network')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
 from utils.imageUtils import ImageUtils
