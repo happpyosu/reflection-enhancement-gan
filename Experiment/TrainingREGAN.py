@@ -44,8 +44,7 @@ class ReflectionGAN:
 
         # lr decay
         lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=0.001,
-                                                                     decay_steps=self.epoch * len(
-                                                                         self.train_dataset // 2),
+                                                                     decay_steps=self.epoch * 5000 // 2,
                                                                      decay_rate=1,
                                                                      staircase=False)
 
