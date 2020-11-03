@@ -3,7 +3,7 @@ from Network.network import Network
 from Dataset.dataset import DatasetFactory
 import matplotlib.pyplot as plt
 from utils.imageUtils import ImageUtils
-
+from utils import gpuutils
 
 class ReflectionGAN:
     """
@@ -253,6 +253,6 @@ class ReflectionGAN:
 
 
 if __name__ == '__main__':
+    gpuutils.which_gpu_to_use(0)
     gan = ReflectionGAN()
-
-    gan.output_middle_result()
+    gan.start_train_task()
