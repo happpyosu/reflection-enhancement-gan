@@ -48,6 +48,7 @@ class ReflectionGAN:
                                                                      decay_steps=self.epoch * 5000 // 2,
                                                                      decay_rate=1,
                                                                      staircase=False)
+        lr_schedule = 0.0001
 
         # optimizer
         self.optimizer_D1 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
@@ -111,7 +112,7 @@ class ReflectionGAN:
 
     def load_weights(self, epoch: int):
         self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
-        self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
+        # self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -131,11 +132,8 @@ class ReflectionGAN:
         cat_tr_LR = tf.concat([t2, r2], axis=3)
         cat_trm_VAE = tf.concat([cat_tr_LR, m1], axis=3)
 
-        with tf.GradientTape(watch_accessed_variables=False) as d1_tape, \
-                tf.GradientTape(watch_accessed_variables=False) as d2_tape:
-            # watch model
-            d1_tape.watch(self.D1.trainable_variables)
-            d2_tape.watch(self.D2.trainable_variables)
+        with tf.GradientTape() as d1_tape, \
+                tf.GradientTape() as d2_tape:
 
             # step 1. ----------------------Train D1----------------------
             mu, log_var = self.E(cat_trm_VAE, training=True)
@@ -189,13 +187,9 @@ class ReflectionGAN:
             self.optimizer_D1.apply_gradients(zip(grad_D1, self.D1.trainable_variables))
             self.optimizer_D2.apply_gradients(zip(grad_D2, self.D2.trainable_variables))
 
-        with tf.GradientTape(watch_accessed_variables=False) as G_tape, \
-                tf.GradientTape(watch_accessed_variables=False) as G_tape1, \
-                tf.GradientTape(watch_accessed_variables=False) as E_tape:
-            G_tape.watch(self.G.trainable_variables)
-            E_tape.watch(self.E.trainable_variables)
-            G_tape1.watch(self.G.trainable_variables)
-
+        with tf.GradientTape() as G_tape, \
+                tf.GradientTape() as G_tape1, \
+                tf.GradientTape() as E_tape:
             # step 3. ---------------------- Train G to fool the discriminators ----------------------
             # get the encoded z from Encoder.
             mu, var = self.E(cat_trm_VAE)
@@ -254,9 +248,13 @@ class ReflectionGAN:
             print('z_recon_Loss', str(z_recon_Loss))
             # step 6. ---------------------- Mode seeking term (optional) -----------------------
             # Do nothing
+            # ----debug----
+            print('G weight: ', self.G.trainable_variables)
 
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(1)
     gan = ReflectionGAN()
+    #gan.load_weights(80)
+    #gan.output_middle_result()
     gan.start_train_task()
