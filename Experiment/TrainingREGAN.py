@@ -1,5 +1,6 @@
 import tensorflow as tf
 import sys
+
 sys.path.append('../')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
@@ -105,12 +106,12 @@ class ReflectionGAN:
         self.save_weights()
 
     def save_weights(self):
-        self.G.save_weights('./save/' + 'G_' + str(self.inc) + '.h5')
-        self.E.save_weights('./save/' + 'E_' + str(self.inc) + '.h5')
+        self.G.save_weights('../save/' + 'G_' + str(self.inc) + '.h5')
+        self.E.save_weights('../save/' + 'E_' + str(self.inc) + '.h5')
 
     def load_weights(self, epoch: int):
-        self.G.load_weights('./save/' + 'G_' + str(epoch) + '.h5')
-        self.E.load_weights('./save/' + 'E_' + str(epoch) + '.h5')
+        self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
+        self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -188,10 +189,12 @@ class ReflectionGAN:
             self.optimizer_D1.apply_gradients(zip(grad_D1, self.D1.trainable_variables))
             self.optimizer_D2.apply_gradients(zip(grad_D2, self.D2.trainable_variables))
 
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as G_tape, \
+        with tf.GradientTape(watch_accessed_variables=False) as G_tape, \
+                tf.GradientTape(watch_accessed_variables=False) as G_tape1, \
                 tf.GradientTape(watch_accessed_variables=False) as E_tape:
             G_tape.watch(self.G.trainable_variables)
             E_tape.watch(self.E.trainable_variables)
+            G_tape1.watch(self.G.trainable_variables)
 
             # step 3. ---------------------- Train G to fool the discriminators ----------------------
             # get the encoded z from Encoder.
@@ -246,7 +249,7 @@ class ReflectionGAN:
             z_recon_Loss = 0.5 * tf.reduce_mean(tf.abs(random_z - mu_))
 
             # update G
-            grad_G = G_tape.gradient(z_recon_Loss, self.G.trainable_variables)
+            grad_G = G_tape1.gradient(z_recon_Loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
             print('z_recon_Loss', str(z_recon_Loss))
             # step 6. ---------------------- Mode seeking term (optional) -----------------------
