@@ -1,8 +1,11 @@
 import tensorflow as tf
+import sys
+
+sys.path.append('../')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
-import matplotlib.pyplot as plt
 from utils.imageUtils import ImageUtils
+from utils import gpuutils
 
 
 class ReflectionGAN:
@@ -36,22 +39,22 @@ class ReflectionGAN:
         self.G = Network.build_generator(img_size=self.img_size, noise_dim=self.noise_dim)
         self.E = Network.build_encoder(img_size=self.img_size, noise_dim=self.noise_dim)
 
-        # lr decay
-        lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=0.001,
-                                                                     decay_steps=self.epoch * len(
-                                                                         self.train_dataset // 2),
-                                                                     decay_rate=1,
-                                                                     staircase=False)
-
-        # optimizer
-        self.optimizer_D1 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_D2 = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_G = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-        self.optimizer_E = tf.keras.optimizers.Adam(lr=lr_schedule, beta_1=0.5)
-
         # dataset
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train")
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
+        # lr decay
+        lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(initial_learning_rate=0.001,
+                                                                     decay_steps=self.epoch * 5000 // 2,
+                                                                     decay_rate=1,
+                                                                     staircase=False)
+        lr_schedule = 0.0002
+
+        # optimizer
+        self.optimizer_D1 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_D2 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_G = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
+        self.optimizer_E = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
 
         # config logging
         self.inc = 0
@@ -104,12 +107,12 @@ class ReflectionGAN:
         self.save_weights()
 
     def save_weights(self):
-        self.G.save_weights('./save/' + 'G_' + str(self.inc) + '.h5')
-        self.E.save_weights('./save/' + 'E_' + str(self.inc) + '.h5')
+        self.G.save_weights('../save/' + 'G_' + str(self.inc) + '.h5')
+        self.E.save_weights('../save/' + 'E_' + str(self.inc) + '.h5')
 
     def load_weights(self, epoch: int):
-        self.G.load_weights('./save/' + 'G_' + str(epoch) + '.h5')
-        self.E.load_weights('./save/' + 'E_' + str(epoch) + '.h5')
+        self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
+        # self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -127,17 +130,14 @@ class ReflectionGAN:
         # some concat images.
         cat_tr_VAE = tf.concat([t1, r1], axis=3)
         cat_tr_LR = tf.concat([t2, r2], axis=3)
-        cat_trm_VAE = tf.concat([cat_tr_LR, m1], axis=3)
+        cat_trm_VAE = tf.concat([cat_tr_VAE, m1], axis=3)
 
-        with tf.GradientTape(watch_accessed_variables=False) as d1_tape, \
-                tf.GradientTape(watch_accessed_variables=False) as d2_tape:
-            # watch model
-            d1_tape.watch(self.D1.trainable_variables)
-            d2_tape.watch(self.D2.trainable_variables)
+        with tf.GradientTape() as d1_tape, \
+                tf.GradientTape() as d2_tape:
 
             # step 1. ----------------------Train D1----------------------
             mu, log_var = self.E(cat_trm_VAE, training=True)
-            std = tf.math.exp(log_var / 2)
+            std = tf.exp(log_var / 2)
 
             # encode the noise vector and tile to an image
             z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
@@ -187,14 +187,13 @@ class ReflectionGAN:
             self.optimizer_D1.apply_gradients(zip(grad_D1, self.D1.trainable_variables))
             self.optimizer_D2.apply_gradients(zip(grad_D2, self.D2.trainable_variables))
 
-        with tf.GradientTape(watch_accessed_variables=False, persistent=True) as G_tape, \
-                tf.GradientTape(watch_accessed_variables=False) as E_tape:
-            G_tape.watch(self.G.trainable_variables)
-            E_tape.watch(self.E.trainable_variables)
-
+        with tf.GradientTape() as G_tape, \
+                tf.GradientTape() as G_tape1, \
+                tf.GradientTape() as E_tape:
             # step 3. ---------------------- Train G to fool the discriminators ----------------------
             # get the encoded z from Encoder.
             mu, var = self.E(cat_trm_VAE)
+            std = tf.exp(var / 2)
             z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
             z = (z * std) + mu
             z = tf.tile(z, [1, self.img_size, self.img_size, 1])
@@ -225,7 +224,7 @@ class ReflectionGAN:
             KL_div = 0.01 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
 
             # step. 4. Reconstruct of ground truth image
-            img_recon_loss = 1 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
+            img_recon_loss = 10 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
 
             # total loss for Encoder and Generator
             E_G_Loss = G_GAN_Loss + KL_div + img_recon_loss
@@ -245,14 +244,18 @@ class ReflectionGAN:
             z_recon_Loss = 0.5 * tf.reduce_mean(tf.abs(random_z - mu_))
 
             # update G
-            grad_G = G_tape.gradient(z_recon_Loss, self.G.trainable_variables)
+            grad_G = G_tape1.gradient(z_recon_Loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
             print('z_recon_Loss', str(z_recon_Loss))
             # step 6. ---------------------- Mode seeking term (optional) -----------------------
             # Do nothing
+            # ----debug----
+            print('G weight: ', self.G.trainable_variables)
 
 
 if __name__ == '__main__':
+    # gpuutils.which_gpu_to_use(1)
     gan = ReflectionGAN()
-
-    gan.output_middle_result()
+    gan.load_weights(100)
+    gan.output_middle_result(5, 5)
+    #gan.start_train_task()
