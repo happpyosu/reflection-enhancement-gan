@@ -48,7 +48,7 @@ class ReflectionGAN:
                                                                      decay_steps=self.epoch * 5000 // 2,
                                                                      decay_rate=1,
                                                                      staircase=False)
-        lr_schedule = 0.0001
+        lr_schedule = 0.0002
 
         # optimizer
         self.optimizer_D1 = tf.keras.optimizers.Adam(lr_schedule, beta_1=0.5)
@@ -130,14 +130,14 @@ class ReflectionGAN:
         # some concat images.
         cat_tr_VAE = tf.concat([t1, r1], axis=3)
         cat_tr_LR = tf.concat([t2, r2], axis=3)
-        cat_trm_VAE = tf.concat([cat_tr_LR, m1], axis=3)
+        cat_trm_VAE = tf.concat([cat_tr_VAE, m1], axis=3)
 
         with tf.GradientTape() as d1_tape, \
                 tf.GradientTape() as d2_tape:
 
             # step 1. ----------------------Train D1----------------------
             mu, log_var = self.E(cat_trm_VAE, training=True)
-            std = tf.math.exp(log_var / 2)
+            std = tf.exp(log_var / 2)
 
             # encode the noise vector and tile to an image
             z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
@@ -193,6 +193,7 @@ class ReflectionGAN:
             # step 3. ---------------------- Train G to fool the discriminators ----------------------
             # get the encoded z from Encoder.
             mu, var = self.E(cat_trm_VAE)
+            std = tf.exp(var / 2)
             z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
             z = (z * std) + mu
             z = tf.tile(z, [1, self.img_size, self.img_size, 1])
@@ -223,7 +224,7 @@ class ReflectionGAN:
             KL_div = 0.01 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
 
             # step. 4. Reconstruct of ground truth image
-            img_recon_loss = 1 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
+            img_recon_loss = 10 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
 
             # total loss for Encoder and Generator
             E_G_Loss = G_GAN_Loss + KL_div + img_recon_loss
@@ -253,8 +254,8 @@ class ReflectionGAN:
 
 
 if __name__ == '__main__':
-    gpuutils.which_gpu_to_use(1)
+    # gpuutils.which_gpu_to_use(1)
     gan = ReflectionGAN()
-    #gan.load_weights(80)
-    #gan.output_middle_result()
-    gan.start_train_task()
+    gan.load_weights(100)
+    gan.output_middle_result(5, 5)
+    #gan.start_train_task()
