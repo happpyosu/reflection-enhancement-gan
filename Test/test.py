@@ -1,9 +1,13 @@
 import tensorflow as tf
+import numpy as np
+from tensorflow.keras import layers
 
-if __name__ == '__main__':
-    z = tf.random.normal(shape=(1, 1, 1, 8))
-    z = (z * 1) + 3
+x_in = np.random.random([1, 256, 256, 3])
+kernel_in = np.random.random([32, 32, 3, 3])
+x = tf.constant(x_in, dtype=tf.float32)
+kernel = tf.constant(kernel_in, dtype=tf.float32)
+res = tf.nn.conv2d(x, kernel, strides=[1, 1, 1, 1], padding='SAME')
 
-    z = tf.tile(z, [1, 256, 256, 1])
-
-    print(z)
+print(x.shape)
+print(kernel.shape)
+print(res.shape)

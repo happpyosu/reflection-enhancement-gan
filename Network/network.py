@@ -1,13 +1,74 @@
 from Network.component import Component
 import tensorflow as tf
+from tensorflow.keras import layers
 
 
 class Network:
     """
         This class implements nn models' architecture.
         @Author: chen hao
-        @Date:   2020.5.7
+        @Date:   2020.11.05
     """
+
+    @staticmethod
+    def build_optical_synthesis_generator(img_size=256, noise_dim=4):
+        """
+        build the generator model that use the conventional reflection synthetic model.
+        the generator with the optical synthesis prior will only accept a noise-map from the encoder and convert it to
+        an (1) alpha blending mask for fusing the transmission layer T and reflection layer R. (2) convolution kernel
+        that blurs the reflection layer
+        :param img_size: image size for reflection image R, transmission layer T
+        :param noise_dim: noise_dim to concat with the input image (T, R)
+        :return: tf.keras.Model object. The generator model accepts three 4-D tensors: (1) T. (2) R. (3) noise layer.
+        The generator model will output two tensors:
+        (1) [alpha_blending_mask] with (256, 256, 3) for mixing two layers.
+        (2) [conv-kernel] used for blurring the reflection layer.
+        """
+        in_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3 + 3 + noise_dim))
+
+        # noise_in = tf.keras.layers.Input(shape=(img_size, img_size, noise_dim))
+        # T_in = tf.keras.layers.Input(shape=(img_size, img_size, 3))
+        # R_in = tf.keras.layers.Input(shape=(img_size, img_size, 3))
+        # split the input tensor
+        T_in, R_in, noise_in = tf.split(in_layer, [3, 3, noise_dim], axis=3)
+        ds1 = Component.get_conv_block(noise_dim, 32, norm=False)(noise_in)
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        ds3 = Component.get_conv_block(64, 128)(ds2)    # d3: (32, 32)
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        ds6 = Component.get_conv_block(256, 256)(ds5)
+
+        us1 = Component.get_deconv_block(256, 256)(ds6)
+        us2 = Component.get_deconv_block(512, 256)(tf.concat([us1, ds5], axis=3))
+        us3 = Component.get_deconv_block(512, 128)(tf.concat([us2, ds4], axis=3))
+        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))    # us4: (64, 64, 64)
+        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))    # us5: (128, 128, 32)
+
+        # let us handle the conv kernel first
+        # us5 ---conv--- (32, 32, 16) ---reshape---> (32, 32, 3, 3)
+        # (1, 128, 128, 32) -> (1, 64, 64, 16)
+        down1 = Component.get_conv_block(32, 16)(us5)
+
+        # (1, 64, 64, 16) -> (1, 32, 32, 9)
+        down2 = Component.get_conv_block(16, 9)(down1)
+
+        kernel = tf.reshape(down2, [32, 32, 3, 3])
+
+        # the alpha blending mask
+        alpha_mask = Component.get_deconv_block(64, 3, norm=False, non_linear='leaky_relu')(
+            tf.concat([us5, ds1], axis=3))
+        alpha_mask_sub = layers.subtract([tf.ones_like(alpha_mask), alpha_mask])
+
+        # the blurring kernel
+        blurred_R = tf.nn.conv2d(R_in, kernel, strides=[1, 1, 1, 1], padding='SAME')
+
+        # transmission
+        t_layer = layers.multiply([T_in, alpha_mask])
+        r_layer = layers.multiply([blurred_R, alpha_mask_sub])
+
+        out = layers.add([t_layer, r_layer])
+
+        return tf.keras.Model(in_layer, out)
 
     @staticmethod
     def build_generator(img_size=256, noise_dim=4):
@@ -96,4 +157,3 @@ class Network:
         log_var = fc_logvar(out)
 
         return tf.keras.Model(input_layer, (mu, log_var))
-
