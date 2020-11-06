@@ -5,7 +5,7 @@ from tensorflow.keras import layers
 
 class Network:
     """
-        This class implements nn models' architecture.
+        This class implements nn models' architecture for the Reflection-Enhancement-gan
         @Author: chen hao
         @Date:   2020.11.05
     """
@@ -57,8 +57,9 @@ class Network:
         # the alpha blending mask
         alpha_mask = Component.get_deconv_block(64, 3, norm=False, non_linear='leaky_relu')(
             tf.concat([us5, ds1], axis=3))
-        alpha_mask_sub = layers.subtract([tf.ones_like(alpha_mask), alpha_mask])
-
+        # alpha_mask_sub = layers.subtract([tf.ones_like(alpha_mask), alpha_mask])
+        alpha_mask_sub = Component.get_deconv_block(64, 3, norm=False, non_linear='leaky_relu')(
+            tf.concat([us5, ds1], axis=3))
         # the blurring kernel
         blurred_R = tf.nn.conv2d(R_in, kernel, strides=[1, 1, 1, 1], padding='SAME')
 
