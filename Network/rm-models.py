@@ -1,12 +1,13 @@
 import tensorflow as tf
-from Network.network import Network, PerceptionRemovalNetworks
+from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks
 from Dataset.dataset import DatasetFactory
 
 '''
 This file offers some reflection removal model implements.
 (1) PerceptionRemovalModel: reflection removal with the perception loss
+(2) BidirectionalRemovalModel: reflection removal with the bidirectional translation
 @author: chen hao
-@date: 2020-10-31
+@date: 2020-11-11
 '''
 
 from tensorflow import keras
@@ -165,9 +166,42 @@ class PerceptionRemovalModel:
         return gradx_loss, grady_loss
 
 
-if __name__ == '__main__':
-    rm = PerceptionRemovalModel()
-    ite = rm.train_dataset.__iter__()
-    t, r, m = next(ite)
+class BidirectionalRemovalModel:
+    """
+    Seeing Deeply and Bidirectionally: A Deep Learning
+    Approach for Single Image Reflection Removal
+    """
 
-    rm.train_one_step(t, r, m)
+    def __init__(self):
+        # image size
+        self.img_size = 256
+
+        # generator (g0)
+        self.g0 = BidirectionalRemovalNetworks.build_vanilla_generator()
+
+        # two bidirectional unit (H and g1)
+        self.H = BidirectionalRemovalNetworks.build_bidirectional_unit()
+        self.g1 = BidirectionalRemovalNetworks.build_bidirectional_unit()
+
+        # the discriminator
+        self.d = BidirectionalRemovalNetworks.build_discriminator()
+
+        # optimizer for g and d
+        self.g0_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.g1_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.d_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.H_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # training dataset and test dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
+    @tf.function
+    def train_one_step(self, t, r, m):
+        with tf.GradientTape() as g0_tape, tf.GradientTape() as d_tape, \
+                tf.GradientTape() as g1_tape, tf.GradientTape() as H_tape:
+
+            # pass m to g0
+            B = self.g0(m, training=True)
+            Loss_g0 = tf.reduce_mean(tf.abs(B - t))
+        # todo

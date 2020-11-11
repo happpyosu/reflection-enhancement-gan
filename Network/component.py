@@ -152,3 +152,30 @@ class PerceptionRemovalModelComponent:
         model.add(layers.LeakyReLU())
 
         return model
+
+
+class BidirectionalRemovalComponent:
+    @staticmethod
+    def get_conv_block(f, s, norm=True, non_linear='leaky_relu'):
+        model = keras.Sequential()
+        model.add(layers.Conv2D(filters=f, kernel_size=(4, 4), strides=(s, s), padding='same'))
+        if norm:
+            model.add(layers.BatchNormalization())
+
+        if non_linear == 'leaky_relu':
+            model.add(layers.LeakyReLU())
+
+        return model
+
+    @staticmethod
+    def get_deconv_block(f, s, norm=True, non_linear='relu'):
+        model = keras.Sequential()
+        model.add(layers.Conv2DTranspose(f, kernel_size=(4, 4), strides=(s, s), padding='same'))
+        if norm:
+            model.add(layers.BatchNormalization())
+
+        if non_linear == 'relu':
+            model.add(layers.ReLU())
+
+        return model
+

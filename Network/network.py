@@ -2,7 +2,7 @@ from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
-from Network.component import PerceptionRemovalModelComponent
+from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent
 
 
 class Network:
@@ -35,7 +35,7 @@ class Network:
         T_in, R_in, noise_in = tf.split(in_layer, [3, 3, noise_dim], axis=3)
         ds1 = Component.get_conv_block(noise_dim, 32, norm=False)(noise_in)
         ds2 = Component.get_conv_block(32, 64)(ds1)
-        ds3 = Component.get_conv_block(64, 128)(ds2)    # d3: (32, 32)
+        ds3 = Component.get_conv_block(64, 128)(ds2)  # d3: (32, 32)
         ds4 = Component.get_conv_block(128, 256)(ds3)
         ds5 = Component.get_conv_block(256, 256)(ds4)
         ds6 = Component.get_conv_block(256, 256)(ds5)
@@ -43,8 +43,8 @@ class Network:
         us1 = Component.get_deconv_block(256, 256)(ds6)
         us2 = Component.get_deconv_block(512, 256)(tf.concat([us1, ds5], axis=3))
         us3 = Component.get_deconv_block(512, 128)(tf.concat([us2, ds4], axis=3))
-        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))    # us4: (64, 64, 64)
-        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))    # us5: (128, 128, 32)
+        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))  # us4: (64, 64, 64)
+        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))  # us5: (128, 128, 32)
 
         # let us handle the conv kernel first
         # us5 ---conv--- (32, 32, 16) ---reshape---> (32, 32, 3, 3)
@@ -199,5 +199,82 @@ class PerceptionRemovalNetworks:
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 64))
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 1))
         model.add(layers.Conv2D(filters=64, kernel_size=(1, 1), padding='same'))
+
+        return model
+
+
+class BidirectionalRemovalNetworks:
+    @staticmethod
+    def build_vanilla_generator():
+        inputs = keras.Input(shape=(256, 256, 3))
+
+        # the input layer
+        x = layers.Conv2D(filters=64, kernel_size=(4, 4), padding='same')(inputs)
+        x = layers.LeakyReLU()(x)
+
+        c1 = BidirectionalRemovalComponent.get_conv_block(512, 2)(x)
+        c2 = BidirectionalRemovalComponent.get_conv_block(256, 2)(c1)
+        c3 = BidirectionalRemovalComponent.get_conv_block(128, 2)(c2)
+        c4 = BidirectionalRemovalComponent.get_conv_block(64, 2)(c3)
+        c5 = BidirectionalRemovalComponent.get_conv_block(32, 2)(c4)
+        c6 = BidirectionalRemovalComponent.get_conv_block(16, 2)(c5)
+        c7 = BidirectionalRemovalComponent.get_conv_block(8, 2)(c6)
+
+        d1 = BidirectionalRemovalComponent.get_deconv_block(8, 2)(c7)
+        d2 = BidirectionalRemovalComponent.get_deconv_block(16, 2)(tf.concat([d1, c6], axis=3))
+        d3 = BidirectionalRemovalComponent.get_deconv_block(32, 2)(tf.concat([d2, c5], axis=3))
+        d4 = BidirectionalRemovalComponent.get_deconv_block(64, 2)(tf.concat([d3, c4], axis=3))
+        d5 = BidirectionalRemovalComponent.get_deconv_block(128, 2)(tf.concat([d4, c3], axis=3))
+        d6 = BidirectionalRemovalComponent.get_deconv_block(256, 2)(tf.concat([d5, c2], axis=3))
+        d7 = BidirectionalRemovalComponent.get_deconv_block(512, 2)(tf.concat([d6, c1], axis=3))
+
+        # the output layer
+        y = layers.Conv2DTranspose(filters=3, kernel_size=(4, 4), padding='same', activation=keras.activations.tanh)(d7)
+
+        return keras.Model(inputs, y)
+
+    @staticmethod
+    def build_bidirectional_unit():
+        inputs = keras.Input(shape=(256, 256, 6))
+
+        # the input layer
+        x = layers.Conv2D(filters=64, kernel_size=(4, 4), padding='same')(inputs)
+        x = layers.LeakyReLU()(x)
+
+        c1 = BidirectionalRemovalComponent.get_conv_block(512, 2)(x)
+        c2 = BidirectionalRemovalComponent.get_conv_block(256, 2)(c1)
+        c3 = BidirectionalRemovalComponent.get_conv_block(128, 2)(c2)
+        c4 = BidirectionalRemovalComponent.get_conv_block(64, 2)(c3)
+        c5 = BidirectionalRemovalComponent.get_conv_block(32, 2)(c4)
+
+        d1 = BidirectionalRemovalComponent.get_deconv_block(32, 2)(c5)
+        d2 = BidirectionalRemovalComponent.get_deconv_block(64, 2)(tf.concat([d1, c4], axis=3))
+        d3 = BidirectionalRemovalComponent.get_deconv_block(128, 2)(tf.concat([d2, c3], axis=3))
+        d4 = BidirectionalRemovalComponent.get_deconv_block(256, 2)(tf.concat([d3, c2], axis=3))
+        d5 = BidirectionalRemovalComponent.get_deconv_block(512, 2)(tf.concat([d4, c1], axis=3))
+
+        # the output layer
+        y = layers.Conv2DTranspose(filters=3, kernel_size=(4, 4), padding='same', activation=keras.activations.tanh)(d5)
+
+        return keras.Model(inputs, y)
+
+    @staticmethod
+    def build_discriminator(img_size=256):
+        model = keras.Sequential()
+        model.add(layers.InputLayer(input_shape=(None, None, 3)))
+
+        # layer 1
+        model.add(PerceptionRemovalModelComponent.get_conv_block(64, 2, non_linear='leaky_relu'))
+        # layer 2
+        model.add(PerceptionRemovalModelComponent.get_conv_block(128, 2, non_linear='leaky_relu'))
+        # layer 3
+        model.add(PerceptionRemovalModelComponent.get_conv_block(256, 2, non_linear='leaky_relu'))
+        # layer 4
+        model.add(PerceptionRemovalModelComponent.get_conv_block(512, 1, non_linear='leaky_relu'))
+
+        # final layer
+        model.add(layers.ZeroPadding2D(padding=(1, 1)))
+        model.add(layers.Conv2D(filters=1, kernel_size=(4, 4), strides=(1, 1), kernel_initializer=keras.
+                                initializers.random_normal(0, 0.02), activation='sigmoid'))
 
         return model
