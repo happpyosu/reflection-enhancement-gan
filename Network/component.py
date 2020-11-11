@@ -1,5 +1,7 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
+from tensorflow import keras
+from tensorflow.keras import layers
 
 
 class Component:
@@ -124,3 +126,29 @@ class Component:
 
         y = conv(x) + short_cut(x)
         return tf.keras.Model(x, y)
+
+
+class PerceptionRemovalModelComponent:
+    @staticmethod
+    def get_conv_block(f, s, norm=True, non_linear='leaky_relu'):
+        model = keras.Sequential()
+        model.add(layers.ZeroPadding2D(padding=(1, 1)))
+        model.add(layers.Conv2D(filters=f, kernel_size=(4, 4), strides=(s, s),
+                                kernel_initializer=keras.initializers.random_normal(0, 0.02)))
+
+        if norm:
+            model.add(layers.BatchNormalization())
+
+        if non_linear == 'leaky_relu':
+            model.add(layers.LeakyReLU())
+
+        return model
+
+    @staticmethod
+    def get_conv_BN_block(k, d):
+        model = keras.Sequential()
+        model.add(layers.BatchNormalization())
+        model.add(layers.Conv2D(filters=64, kernel_size=(k, k), dilation_rate=(d, d), padding='same'))
+        model.add(layers.LeakyReLU())
+
+        return model

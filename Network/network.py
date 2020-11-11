@@ -1,6 +1,8 @@
 from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
+from tensorflow import keras
+from Network.component import PerceptionRemovalModelComponent
 
 
 class Network:
@@ -104,7 +106,7 @@ class Network:
     @staticmethod
     def build_discriminator(img_size=256):
         """
-        build the discriminator model.
+        build the discriminator model for regan.
         :param img_size: image size for synthetic image S
         :return: two tf.keras.Model objects.
         """
@@ -131,7 +133,7 @@ class Network:
     @staticmethod
     def build_encoder(img_size=256, noise_dim=4):
         """
-        build the encoder model.
+        build the encoder model for regan.
         :param img_size: image size for synthetic image S, transmission layer T and reflection layer R.
         :param noise_dim: noise dimension that the encoder will predict.
         :return: tf.keras.Model objects.
@@ -158,3 +160,44 @@ class Network:
         log_var = fc_logvar(out)
 
         return tf.keras.Model(input_layer, (mu, log_var))
+
+
+class PerceptionRemovalNetworks:
+    @staticmethod
+    def build_discriminator(img_size=256):
+        model = keras.Sequential()
+        model.add(layers.InputLayer(input_shape=(None, None, 6)))
+
+        # layer 1
+        model.add(PerceptionRemovalModelComponent.get_conv_block(64, 2, non_linear='leaky_relu'))
+        # layer 2
+        model.add(PerceptionRemovalModelComponent.get_conv_block(128, 2, non_linear='leaky_relu'))
+        # layer 3
+        model.add(PerceptionRemovalModelComponent.get_conv_block(256, 2, non_linear='leaky_relu'))
+        # layer 4
+        model.add(PerceptionRemovalModelComponent.get_conv_block(512, 1, non_linear='leaky_relu'))
+
+        # final layer
+        model.add(layers.ZeroPadding2D(padding=(1, 1)))
+        model.add(layers.Conv2D(filters=1, kernel_size=(4, 4), strides=(1, 1), kernel_initializer=keras.
+                                initializers.random_normal(0, 0.02), activation='sigmoid'))
+
+        return model
+
+    @staticmethod
+    def build_rm_model():
+        inputs = keras.Input(shape=(None, None, 1475), name="image_input")
+        model = keras.Sequential()
+        model.add(inputs)
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(1, 1))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 1))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 2))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 4))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 8))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 16))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 32))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 64))
+        model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 1))
+        model.add(layers.Conv2D(filters=64, kernel_size=(1, 1), padding='same'))
+
+        return model
