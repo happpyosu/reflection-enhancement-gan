@@ -77,7 +77,7 @@ class PerceptionRemovalModel:
             on_real = self.d(real)
             on_fake = self.d(fake)
 
-            loss_d = 0.5 * tf.reduce_mean(-tf.math.log(on_real + self.EPS + tf.math.log(1 - on_fake + self.EPS)))
+            loss_d = 0.5 * tf.reduce_mean(-tf.math.log(on_real + self.EPS) + tf.math.log(1 - on_fake + self.EPS))
             loss_g = tf.reduce_mean(tf.math.log(1 - on_fake + self.EPS))
 
             # exclusion loss
@@ -173,6 +173,9 @@ class BidirectionalRemovalModel:
     """
 
     def __init__(self):
+        # epsilon for log function
+        self.EPS = 1e-12
+
         # image size
         self.img_size = 256
 
@@ -202,6 +205,48 @@ class BidirectionalRemovalModel:
                 tf.GradientTape() as g1_tape, tf.GradientTape() as H_tape:
 
             # pass m to g0
-            B = self.g0(m, training=True)
-            Loss_g0 = tf.reduce_mean(tf.abs(B - t))
-        # todo
+            pred_B = self.g0(m, training=True)
+
+            # concat I with B, pass IB to H
+            IB = tf.concat([m, t], axis=3)
+            pred_R = self.H(IB, training=True)
+
+            # concat I with R, pass IR to g1
+            IR = tf.concat([m, r], axis=3)
+            pred_B1 = self.g1(IR, training=True)
+
+            # l2 loss for g0
+            loss_g0 = tf.reduce_mean((pred_B - t) ** 2)
+
+            # l2 loss for H
+            loss_H = tf.reduce_mean((pred_R - r) ** 2)
+
+            # l2 loss for g1
+            loss_g1 = tf.reduce_mean((pred_B1 - t) ** 2)
+
+            # training d
+            on_fake = self.d(pred_B1)
+            on_real = self.d(t)
+            Loss_d = tf.reduce_mean(tf.math.log(on_real + self.EPS) + tf.math.log(1 - on_fake + self.EPS))
+            grad_d = d_tape.gradient(Loss_d, self.d.trainable_variables)
+            self.d_optimizer.apply_gradients(zip(grad_d, self.d.trainable_variables))
+
+            # gan loss for g1
+            on_fake = self.d(pred_B1)
+            loss_gan = tf.reduce_mean(-tf.math.log(on_real))
+
+            Loss_all = loss_g0 + loss_g1 + loss_H + loss_gan
+
+            # update g1
+            grad_g1 = g1_tape.gradient(Loss_all, self.g1.trainable_variables)
+            self.g1_optimizer.apply_gradients(zip(grad_g1, self.g1.trainable_variables))
+
+            # update H
+            grad_H = H_tape.gradient(Loss_all, self.H.trainable_variables)
+            self.H_optimizer.apply_gradients(zip(grad_H, self.H.trainable_variables))
+
+            # update g0
+            grad_g0 = g0_tape.gradient(Loss_all, self.g0.trainable_variables)
+            self.g0_optimizer.apply_gradients(zip(grad_g0, self.g0.trainable_variables))
+
+
