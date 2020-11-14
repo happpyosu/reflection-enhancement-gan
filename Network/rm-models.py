@@ -1,11 +1,12 @@
 import tensorflow as tf
-from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks
+from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, MisalignedRemovalNetworks
 from Dataset.dataset import DatasetFactory
 
 '''
 This file offers some reflection removal model implements.
 (1) PerceptionRemovalModel: reflection removal with the perception loss
 (2) BidirectionalRemovalModel: reflection removal with the bidirectional translation
+(3) MisalignedRemovalModel: reflection removal with misaligned data and network enhancement(channel attention).
 @author: chen hao
 @date: 2020-11-11
 '''
@@ -30,7 +31,7 @@ class PerceptionRemovalModel:
         self.img_size = 256
 
         # the vgg19 feature extractor
-        self.feature_extractor = self._build_vgg19()
+        self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
 
         # the rm model
         self.rm = PerceptionRemovalNetworks.build_rm_model()
@@ -95,22 +96,6 @@ class PerceptionRemovalModel:
             # update d
             grad_d = d_tape.gradient(loss_d, self.d.trainable_variables)
             self.d_optimizer.apply_gradients(zip(grad_d, self.d.trainable_variables))
-
-    def _build_vgg19(self):
-        """
-        build the VGG19 submodel used for building perceptual middle features.
-        :return: tf.Model
-        """
-        vgg19 = keras.applications.VGG19()
-        features = [layer.output for layer in vgg19.layers]
-        conv1_2 = features[2]
-        conv2_2 = features[5]
-        conv3_2 = features[8]
-        conv4_2 = features[13]
-        conv5_2 = features[18]
-        features_list = [conv1_2, conv2_2, conv3_2, conv4_2, conv5_2]
-
-        return keras.Model(vgg19.input, features_list)
 
     def compute_img_gradient(self, img):
         """
@@ -250,3 +235,98 @@ class BidirectionalRemovalModel:
             self.g0_optimizer.apply_gradients(zip(grad_g0, self.g0.trainable_variables))
 
 
+class MisalignedRemovalModel:
+    def __init__(self):
+        # epsilon for log function
+        self.EPS = 1e-12
+
+        # the image size
+        self.img_size = 256
+
+        # the vgg19 feature extractor
+        self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
+
+        # vgg features 1472 + origin image 3 = 1475
+        self.rm = MisalignedRemovalNetworks.build_DRNet(in_dims=1475)
+
+        # d
+        self.d = MisalignedRemovalNetworks.build_patch_gan_discriminator()
+
+        # optimizer for g and d
+        self.g_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.d_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+    @tf.function
+    def train_one_step(self, t, r, m):
+        # obtain the hypercolumn features first.
+        features_list = self.feature_extractor(m)
+        features = m
+
+        for f in features_list:
+            resized = tf.image.resize(f, (self.img_size, self.img_size))
+            features = tf.concat([features, resized], axis=3)
+
+        # deallocate the big tensors
+        del features_list
+        with tf.GradientTape() as g_tape, tf.GradientTape() as d_tape:
+            # train rm first
+            pred_t = self.rm(features, training=True)
+
+            # the feature loss
+            loss_feature = self.compute_feature_loss(pred_t, t)
+
+            # the pixel loss
+            loss_pixel = self.compute_pixel_loss(pred_t, t)
+
+            # the gan loss
+            loss_gan = tf.reduce_mean(-tf.math.log(self.d(pred_t) + self.EPS))
+
+            # total loss
+            Loss_total = 0.1 * loss_feature + loss_pixel + 0.01 * loss_gan
+
+            grad_g = g_tape.gradient(Loss_total, self.rm.trainable_variables)
+            self.g_optimizer.apply_gradients(zip(grad_g, self.rm.trainable_variables))
+
+            # train d
+            pred_t = self.rm(features, training=True)
+            on_real = self.d(t)
+            on_fake = self.d(pred_t)
+
+            Loss_d = tf.reduce_mean(tf.math.log(on_real + self.EPS) + tf.math.log(1 - on_fake + self.EPS))
+
+            grad_d = d_tape.gradient(Loss_d, self.d.trainable_variables)
+            self.d_optimizer.apply_gradients(zip(grad_d, self.d.trainable_variables))
+
+    def compute_feature_loss(self, img1, img2):
+        """
+        compute the feature using vgg19
+        :param img1: image1
+        :param img2: image2
+        :return: loss tensor
+        """
+        feat_list_img1 = self.feature_extractor(img1)
+        feat_list_img2 = self.feature_extractor(img2)
+        feature_loss = 0
+        for i in range(len(feat_list_img1)):
+            feature_loss += tf.reduce_mean(tf.abs(feat_list_img1[i] - feat_list_img2[i]))
+
+        return feature_loss
+
+    def compute_pixel_loss(self, img1, img2):
+        """
+        compute the pixel loss (including the l1 loss and gradient loss on two images)
+        :param img2: image2
+        :param img1: image1
+        :return: tf.Tensor
+        """
+        l1_loss = tf.reduce_mean(tf.abs(img1 - img2))
+
+        grad_x_img1 = img1[:, 1:, :, :] - img1[:, :-1, :, :]
+        grad_y_img1 = img1[:, :, 1:, :] - img1[:, :, :-1, :]
+
+        grad_x_img2 = img2[:, 1:, :, :] - img2[:, :-1, :, :]
+        grad_y_img2 = img2[:, 1:, :, :] - img2[:, :, :-1, :]
+
+        grad_loss = tf.reduce_mean(tf.abs(grad_x_img1 - grad_x_img2)) + tf.reduce_mean(tf.abs(grad_y_img1 - grad_y_img2))
+
+        return l1_loss + grad_loss

@@ -3,8 +3,11 @@
     <words>
       <w>acti</w>
       <w>conv</w>
+      <w>deconv</w>
       <w>hypercolumn</w>
       <w>keras</w>
+      <w>relu</w>
+      <w>resblocks</w>
     </words>
   </dictionary>
 </component>

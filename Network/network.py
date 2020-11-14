@@ -2,7 +2,7 @@ from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
-from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent
+from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, MisalignedRemovalComponent
 
 
 class Network:
@@ -278,3 +278,102 @@ class BidirectionalRemovalNetworks:
                                 initializers.random_normal(0, 0.02), activation='sigmoid'))
 
         return model
+
+
+class MisalignedRemovalNetworks:
+    @staticmethod
+    def build_DRNet(in_dims):
+        """
+        build the reflection removal network
+        :param in_dims: input feature map dimensions. origin paper uses the VGG19 to extract high-level image features.
+        :return: tf.keras.Model.
+        """
+        n_res = 13
+
+        model = keras.Sequential()
+
+        # conv1 256 -> 256
+        model.add(MisalignedRemovalComponent.get_conv_block(in_dim=in_dims, f=64, k=3, s=1, d=1,
+                                                            norm=True, non_linear='relu'))
+        # conv2 256 -> 256
+        model.add(MisalignedRemovalComponent.get_conv_block(in_dim=64, f=128, k=3, s=1, d=1,
+                                                            norm=True, non_linear='relu'))
+        # conv3 256 -> 128
+        model.add(MisalignedRemovalComponent.get_conv_block(in_dim=128, f=256, k=3, s=2, d=1,
+                                                            norm=True, non_linear='relu'))
+
+        # 13 res blocks 128 -> 128
+        for _ in range(n_res):
+            model.add(MisalignedRemovalComponent.get_res_block(f=256, d=1, sz=128))
+
+        # deconv1 128 -> 256
+        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=256, k=3, s=2, d=1))
+
+        # deconv2 256 -> 256
+        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=256, k=3, s=1, d=1))
+
+        # pyramid pooling 256 -> 256
+        model.add(MisalignedRemovalComponent.get_pyramid_pooling_block(feat_sz=256, in_channels=256,
+                                                                       out_channels=256, ct_channels=64))
+
+        # deconv3 256 -> 256
+        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=256, k=3, s=1, d=1))
+
+        return model
+
+    @staticmethod
+    def build_patch_gan_discriminator():
+        inp = keras.Input(shape=(256, 256, 3))
+        model = keras.Sequential()
+        n_layers = 3
+
+        model.add(inp)
+
+        model.add(layers.Conv2D(filters=64, kernel_size=4, strides=(2, 2), padding='same'))
+        model.add(layers.LeakyReLU())
+
+        nf = 64
+        for n in range(n_layers):
+            model.add(layers.Conv2D(filters=nf, kernel_size=4, strides=(2, 2), padding='same'))
+            model.add(layers.BatchNormalization())
+            model.add(layers.LeakyReLU())
+            nf = min(nf * 2, 512)
+
+        # 256 / 8 = 32
+
+        # 32 -> 32
+        model.add(layers.Conv2D(filters=nf, kernel_size=4, strides=(1, 1), padding='same'))
+        model.add(layers.BatchNormalization())
+        model.add(layers.LeakyReLU())
+
+        # 32 -> 32
+        model.add(layers.Conv2D(filters=nf, kernel_size=4, strides=(1, 1), padding='same', activation='sigmoid'))
+        model.add(layers.BatchNormalization())
+        model.add(layers.LeakyReLU())
+
+        return model
+
+
+class Vgg19FeatureExtractor:
+    @staticmethod
+    def build_vgg19_feature_extractor():
+        """
+        build the VGG19 submodel used for building perceptual middle features.
+        :return: tf.keras.Model
+        """
+        vgg19 = keras.applications.VGG19()
+        features = [layer.output for layer in vgg19.layers]
+        conv1_2 = features[2]
+        conv2_2 = features[5]
+        conv3_2 = features[8]
+        conv4_2 = features[13]
+        conv5_2 = features[18]
+        features_list = [conv1_2, conv2_2, conv3_2, conv4_2, conv5_2]
+
+        return keras.Model(vgg19.input, features_list)
+
+
+
+if __name__ == '__main__':
+    extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
+    extractor.summary()
