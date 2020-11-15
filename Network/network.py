@@ -2,7 +2,7 @@ from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
-from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, MisalignedRemovalComponent
+from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, MisalignedRemovalComponent, BeyondLinearityComponent
 
 
 class Network:
@@ -352,6 +352,97 @@ class MisalignedRemovalNetworks:
         model.add(layers.LeakyReLU())
 
         return model
+
+
+class BeyondLinearityNetworks:
+    @staticmethod
+    def build_SynNet(img_size=256):
+        inp = layers.Input(shape=(img_size, img_size, 6))
+
+        t_layer, r_layer = tf.split(inp, num_or_size_splits=2)
+
+        # 256 -> 128
+        conv1 = BeyondLinearityComponent.get_conv_block(6, 64)(inp)
+
+        # 128 -> 64
+        conv2 = BeyondLinearityComponent.get_conv_block(64, 128)(conv1)
+
+        # 64 -> 32
+        conv3 = BeyondLinearityComponent.get_conv_block(128, 256)(conv2)
+
+        x = conv3
+        # 32 -> 32
+        for _ in range(9):
+            x = BeyondLinearityComponent.get_res_block(256, 256)(x)
+
+        # 32 -> 64
+        deconv1 = BeyondLinearityComponent.get_deconv_block(256, 128)(x)
+
+        # 64 -> 128
+        deconv2 = BeyondLinearityComponent.get_deconv_block(128, 64)(deconv1)
+
+        # 128 -> 256 and get the alpha blending mask.
+        mask = BeyondLinearityComponent.get_deconv_block(64, 3, non_linear='sigmoid')(deconv2)
+        mask_d = tf.ones_like(mask) - mask
+
+        out_t = layers.multiply()([mask, t_layer])
+        out_r = layers.multiply()([mask_d, r_layer])
+
+        out = out_t + out_r
+
+        return keras.Model(inp, out)
+
+    @staticmethod
+    def build_RmNet(img_size=256):
+        inp = layers.Input(shape=(img_size, img_size, 3))
+
+        # 256 -> 128
+        conv1 = BeyondLinearityComponent.get_conv_block(3, 16)(inp)
+
+        # 128 -> 64
+        conv2 = BeyondLinearityComponent.get_conv_block(16, 32)(conv1)
+
+        # 64 -> 32
+        conv3 = BeyondLinearityComponent.get_conv_block(32, 64)(conv2)
+
+        # 32 -> 16
+        conv4 = BeyondLinearityComponent.get_conv_block(64, 128)(conv3)
+
+        # 16 -> 8
+        conv5 = BeyondLinearityComponent.get_conv_block(128, 256)(conv4)
+
+        # 8 -> 4
+        conv6 = BeyondLinearityComponent.get_conv_block(256, 512)(conv5)
+
+        def get_upsampling_unit(non_linear):
+            # 4 -> 8
+            deconv1 = BeyondLinearityComponent.get_deconv_block(512, 256)(conv6)
+
+            # 8 -> 16
+            deconv2 = BeyondLinearityComponent.get_deconv_block(256, 128)(tf.concat([deconv1, conv5], axis=3))
+
+            # 16 -> 32
+            deconv3 = BeyondLinearityComponent.get_deconv_block(128, 64)(tf.concat([deconv2, conv4], axis=3))
+
+            # 32 -> 64
+            deconv4 = BeyondLinearityComponent.get_deconv_block(64, 32)(tf.concat([deconv3, conv3], axis=3))
+
+            # 64 -> 128
+            deconv5 = BeyondLinearityComponent.get_deconv_block(32, 16)(tf.concat([deconv4, conv2], axis=3))
+
+            # 128 -> 256
+            out = BeyondLinearityComponent.get_deconv_block(16, 3, non_linear=non_linear)(tf.concat([deconv5, conv1], axis=3))
+
+            return out
+
+        t_layer = get_upsampling_unit('tanh')
+        r_layer = get_upsampling_unit('tanh')
+        mask = get_upsampling_unit('sigmoid')
+        mask_d = tf.ones_like(mask) - mask
+
+        recombined_image = layers.multiply([mask, t_layer]) + layers.multiply([mask_d, r_layer])
+
+        return keras.Model(inp, [t_layer, r_layer, recombined_image])
 
 
 class Vgg19FeatureExtractor:

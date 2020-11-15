@@ -7,6 +7,8 @@ This file offers some reflection removal model implements.
 (1) PerceptionRemovalModel: reflection removal with the perception loss
 (2) BidirectionalRemovalModel: reflection removal with the bidirectional translation
 (3) MisalignedRemovalModel: reflection removal with misaligned data and network enhancement(channel attention).
+(4) BeyondLinearityRemovalModel: Single Image Reflection Removal Beyond Linearity using a predicted alpha blending mask
+to syn the training data.
 @author: chen hao
 @date: 2020-11-11
 '''
@@ -330,3 +332,8 @@ class MisalignedRemovalModel:
         grad_loss = tf.reduce_mean(tf.abs(grad_x_img1 - grad_x_img2)) + tf.reduce_mean(tf.abs(grad_y_img1 - grad_y_img2))
 
         return l1_loss + grad_loss
+
+
+class BeyondLinearityRemovalModel:
+    def __init__(self):
+        pass

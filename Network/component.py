@@ -240,7 +240,8 @@ class MisalignedRemovalComponent:
 
         priors = tf.concat([tf.image.resize(images=stage,
                                             size=(feat_sz, feat_sz),
-                                            method=tf.image.ResizeMethod.NEAREST_NEIGHBOR) for stage in pool_list], axis=3)
+                                            method=tf.image.ResizeMethod.NEAREST_NEIGHBOR) for stage in pool_list],
+                           axis=3)
         out = bottleneck(priors)
 
         return keras.Model(inp, out)
@@ -312,7 +313,8 @@ class MisalignedRemovalComponent:
         :param res_scale: res scale rate
         :return: tf.keras.Model.
         """
-        conv1 = MisalignedRemovalComponent.get_conv_block(in_dim=f, f=f, k=3, s=1, d=d, norm=norm, non_linear=non_linear)
+        conv1 = MisalignedRemovalComponent.get_conv_block(in_dim=f, f=f, k=3, s=1, d=d, norm=norm,
+                                                          non_linear=non_linear)
         conv2 = MisalignedRemovalComponent.get_conv_block(in_dim=f, f=f, k=3, s=1, d=d, norm=norm, non_linear='none')
 
         # in-dim = out-dim = f
@@ -332,9 +334,74 @@ class MisalignedRemovalComponent:
         return keras.Model(inp, out)
 
 
+class BeyondLinearityComponent:
+    @staticmethod
+    def get_conv_block(in_dim, out_dim):
+        """
+        the ConvBlock, all with 4 x 4 kernel size and stride 2
+        :param in_dim: input feature dimensions
+        :param out_dim: output feature dimensions
+        :return: tf.keras model
+        """
+        model = keras.Sequential()
+        model.add(layers.Input(shape=(None, None, in_dim)))
+        model.add(layers.Conv2D(filters=out_dim, kernel_size=4, strides=(2, 2), padding='same'))
+        model.add(tfa.layers.normalizations.InstanceNormalization(axis=3,
+                                                                  center=True,
+                                                                  scale=True,
+                                                                  beta_initializer="random_uniform",
+                                                                  gamma_initializer="random_uniform"
+                                                                  ))
+        model.add(layers.ReLU())
+
+        return model
+
+    @staticmethod
+    def get_deconv_block(in_dim, out_dim, non_linear='relu'):
+        """
+        the deconv block, all with 4 x 4 kernel size and stride 2 filters
+        :param in_dim: input feature dimensions.
+        :param out_dim: output feature dimensions.
+        :param non_linear: non-linear functions
+        :return: tf.keras.Model.
+        """
+        model = keras.Sequential()
+        model.add(layers.Input(shape=(None, None, in_dim)))
+        model.add(layers.Conv2DTranspose(filters=out_dim, kernel_size=4, strides=(2, 2), padding='same'))
+        model.add(tfa.layers.normalizations.InstanceNormalization(axis=3,
+                                                                  center=True,
+                                                                  scale=True,
+                                                                  beta_initializer="random_uniform",
+                                                                  gamma_initializer="random_uniform"
+                                                                  ))
+        if non_linear == 'relu':
+            model.add(layers.ReLU())
+        elif non_linear == 'sigmoid':
+            model.add(layers.Activation(tf.nn.sigmoid))
+        elif non_linear == 'tanh':
+            model.add(layers.Activation(tf.nn.tanh))
+
+        return model
+
+    @staticmethod
+    def get_res_block(in_dim, out_dim):
+        """
+        get the residual linked block (of totally 9 conv and deconv blocks) in the original paper.
+        :return:
+        """
+        inp = layers.Input(shape=(None, None, in_dim))
+        conv = layers.Conv2D(filters=out_dim, kernel_size=4, strides=(1, 1), padding='same')(inp)
+        norm = layers.BatchNormalization()(conv)
+        acti = layers.ReLU()(norm)
+
+        out = tf.concat([inp, acti], axis=3)
+
+        return keras.Model(inp, out)
+
+
+
 
 if __name__ == '__main__':
-    b = MisalignedRemovalComponent.get_pyramid_pooling_block(feat_sz=256, in_channels=256, out_channels=256, ct_channels=256)
+    b = MisalignedRemovalComponent.get_pyramid_pooling_block(feat_sz=256, in_channels=256, out_channels=256,
+                                                             ct_channels=256)
     b.summary()
-
-
