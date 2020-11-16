@@ -1,9 +1,13 @@
 import tensorflow as tf
+import numpy as np
+from tensorflow.keras import layers
 
-if __name__ == '__main__':
-    z = tf.random.normal(shape=(1, 1, 1, 8))
-    z = (z * 1) + 3
+x_in = np.random.random([1, 256, 256, 3])
 
-    z = tf.tile(z, [1, 256, 256, 1])
+pl = layers.AveragePooling2D(pool_size=(256, 256))
 
-    print(z)
+out = pl(x_in)
+print(out.shape)
+
+y = x_in * out
+print(y)

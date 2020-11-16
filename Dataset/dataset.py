@@ -7,9 +7,9 @@ class DatasetFactory:
         Dataset factory class. This class offers tf.dataset object by providing name
     """
     @staticmethod
-    def get_dataset_by_name(name, mode="train"):
+    def get_dataset_by_name(name, mode="train", batch_size=2):
         if name == "RealDataset":
-            return _RealDataset(mode=mode).get_tf_dataset()
+            return _RealDataset(mode=mode, batch_size=batch_size).get_tf_dataset()
         else:
             raise ValueError("Invalid dataset name, got '" + name + "', please check spelling mistakes.")
 
