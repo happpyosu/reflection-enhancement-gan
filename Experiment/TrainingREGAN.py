@@ -36,7 +36,7 @@ class ReflectionGAN:
         # models
         self.D1 = Network.build_discriminator(img_size=self.img_size)
         self.D2 = Network.build_discriminator(img_size=self.img_size)
-        self.G = Network.build_optical_synthesis_generator(img_size=self.img_size, noise_dim=self.noise_dim)
+        self.G = Network.build_generator(img_size=self.img_size, noise_dim=self.noise_dim)
         self.E = Network.build_encoder(img_size=self.img_size, noise_dim=self.noise_dim)
 
         # dataset
