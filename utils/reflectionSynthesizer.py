@@ -9,7 +9,8 @@ class ReflectionSynthesizer:
     ReflectionSynthesizer used to syn the fake training data by using a prior optical prior.
     """
 
-    def __init__(self, t_path, r_path, out_path, replica=1):
+    def __init__(self, t_path='../SynDataset/material/t', r_path='../SynDataset/material/r',
+                 out_path='../SynDataset/out', replica=1):
         """
         constructor for ReflectionSynthesizer.
         :param t_path: transmission layer path
@@ -39,7 +40,7 @@ class ReflectionSynthesizer:
         self.counter = 0
 
         # image size
-        self.image_size = 256
+        self.image_size = (256, 256)
 
         # list t dir and r dir
         self.t_list = os.listdir(t_path)
@@ -181,10 +182,10 @@ class ReflectionSynthesizer:
         rand_t = self.t_list[np.random.randint(len(self.t_list))]
         rand_r = self.r_list[np.random.randint(len(self.r_list))]
 
-        img_list_t = []
-        img_list_r = []
-        img_list_rb = []
-        img_list_m = []
+        # img_list_t = []
+        # img_list_r = []
+        # img_list_rb = []
+        # img_list_m = []
 
         t_image = cv2.resize(cv2.imread(os.path.join(self.t_path, rand_t)), self.image_size,
                              interpolation=cv2.INTER_CUBIC) / 255
@@ -194,10 +195,6 @@ class ReflectionSynthesizer:
         for _ in range(self.replica):
             self.counter += 1
             rb, m = self._syn_data(t_image, r_image)
-            # t = (t_image - 0.5) * 2
-            # r = (r_image - 0.5) * 2
-            # rb = (rb - 0.5) * 2
-            # m = (m - 0.5) * 2
 
             t = t_image * 255
             t.astype(np.uint8)
@@ -211,15 +208,16 @@ class ReflectionSynthesizer:
             m = m * 255
             m.astype(np.uint8)
 
-            cv2.imwrite(os.path.join(self.out_path, 't', str(self.counter)+'png'), t)
-            cv2.imwrite(os.path.join(self.out_path, 'r', str(self.counter)+'png'), r)
-            cv2.imwrite(os.path.join(self.out_path, 'rb', str(self.counter) + 'png'), rb)
-            cv2.imwrite(os.path.join(self.out_path, 'm', str(self.counter) + 'png'), m)
+            cv2.imwrite(os.path.join(self.out_path, 't', str(self.counter)+'.jpg'), t)
+            cv2.imwrite(os.path.join(self.out_path, 'r', str(self.counter)+'.jpg'), r)
+            cv2.imwrite(os.path.join(self.out_path, 'rb', str(self.counter) + '.jpg'), rb)
+            cv2.imwrite(os.path.join(self.out_path, 'm', str(self.counter) + '.jpg'), m)
 
         return self.counter
 
-
-
-
-
+# test
+if __name__ == '__main__':
+    s = ReflectionSynthesizer()
+    for _ in range(100):
+        next(s)
 
