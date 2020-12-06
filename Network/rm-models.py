@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, MisalignedRemovalNetworks
+from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, MisalignedRemovalNetworks, BeyondLinearityNetworks
 from Dataset.dataset import DatasetFactory
 
 '''
@@ -327,7 +327,7 @@ class MisalignedRemovalModel:
         grad_y_img1 = img1[:, :, 1:, :] - img1[:, :, :-1, :]
 
         grad_x_img2 = img2[:, 1:, :, :] - img2[:, :-1, :, :]
-        grad_y_img2 = img2[:, 1:, :, :] - img2[:, :, :-1, :]
+        grad_y_img2 = img2[:, :, 1:, :] - img2[:, :, :-1, :]
 
         grad_loss = tf.reduce_mean(tf.abs(grad_x_img1 - grad_x_img2)) + tf.reduce_mean(tf.abs(grad_y_img1 - grad_y_img2))
 
@@ -336,4 +336,66 @@ class MisalignedRemovalModel:
 
 class BeyondLinearityRemovalModel:
     def __init__(self):
-        pass
+        # epsilon for log function
+        self.EPS = 1e-12
+
+        # the syn net, output is a tensor list of [mask, synthetic image]
+        self.syn = BeyondLinearityNetworks.build_SynNet()
+
+        # the rm net, output is a tensor list of [t_layer, r_layer, recombined_image].
+        self.rm = BeyondLinearityNetworks.build_RmNet()
+
+        # optimizer for g and d
+        self.syn_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.rm_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+        self.d_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # the vgg19 feature extractor
+        self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
+
+        # syn discriminator, disc the reflective images and normal images
+        self.syn_d = BeyondLinearityNetworks.build_discriminator()
+
+        # rm discriminator, disc the non-reflective images and normal images.
+        self.rm_d = BeyondLinearityNetworks.build_discriminator()
+
+    def compute_smoothness_loss(self, mask):
+        """
+        compute the smoothness_loss
+        :param mask:
+        :return:
+        """
+        grad_x = mask[:, 1:, :, :] - mask[:, :-1, :, :]
+        grad_y = mask[:, :, 1:, :] - mask[:, :, :-1, :]
+
+        grad_loss = tf.reduce_mean(grad_x) + tf.reduce_mean(grad_y)
+
+        return grad_loss
+
+    @tf.function
+    def train_one_step(self, t, r, m):
+        # training syn_D and rm_D
+        cat_tr = tf.concat([t, r], axis=3)
+        with tf.GradientTape() as tape1, tf.GradientTape() as tape2, tf.GradientTape() as tape3:
+            # train D
+            mask, syn_m = self.syn(cat_tr, training=True)
+            on_real = tf.reduce_mean(self.syn_d(m))
+            on_fake = tf.reduce_mean(self.syn_d(syn_m))
+
+            loss_d_syn = tf.reduce_mean(tf.math.log(on_real + self.EPS) + tf.math.log(1 - on_fake + self.EPS))
+            grad_d_syn = tape1.gradient(loss_d_syn, self.syn_d.trainable_variables)
+            self.d_optimizer.apply_gradients(zip(grad_d_syn, self.syn_d.trainable_variables))
+
+            # train syn net
+            smoothness_loss = self.compute_smoothness_loss(mask)
+            gan_loss = tf.reduce_mean(-tf.math.log(self.syn_d(syn_m) + self.EPS))
+
+            Loss_syn = 10 * smoothness_loss + gan_loss
+            grad_syn = tape2.gradient(Loss_syn, self.syn.trainable_variables)
+            self.syn_optimizer.apply_gradients(zip(grad_syn, self.syn.trainable_variables))
+
+            # todo
+
+
+
+

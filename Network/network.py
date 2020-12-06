@@ -390,7 +390,7 @@ class BeyondLinearityNetworks:
 
         out = out_t + out_r
 
-        return keras.Model(inp, out)
+        return keras.Model(inp, [mask, out])
 
     @staticmethod
     def build_RmNet(img_size=256):
@@ -443,6 +443,15 @@ class BeyondLinearityNetworks:
         recombined_image = layers.multiply([mask, t_layer]) + layers.multiply([mask_d, r_layer])
 
         return keras.Model(inp, [t_layer, r_layer, recombined_image])
+
+    @staticmethod
+    def build_discriminator():
+        """
+        No implement clue for the discriminator, so we simply use a patch-gan discriminator.
+        :param self:
+        :return:
+        """
+        return MisalignedRemovalNetworks.build_patch_gan_discriminator()
 
 
 class Vgg19FeatureExtractor:
