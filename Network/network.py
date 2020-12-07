@@ -13,6 +13,36 @@ class Network:
     """
 
     @staticmethod
+    def build_multimodal_G(img_size=256, noise_dim=4):
+        """
+        build the generator model
+        :param img_size: image size for reflection image R, transmission layer T
+        :param noise_dim: noise_dim to concat with the input image (T, R)
+        :return: tf.keras.Model object. The generator model accept a 4-D tensor with the shape
+        (Batch_size, img_size, img_size, 3 + 3 + noise_dim)
+        noted that channel 3 + 3 means the RGB channels for image T and R
+        channel noise_dim means the noise channel
+        """
+
+        in_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3 + noise_dim))
+
+        ds1 = Component.get_conv_block(3 + noise_dim, 32, norm=False)(in_layer)
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        ds3 = Component.get_conv_block(64, 128)(ds2)
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        ds6 = Component.get_conv_block(256, 256)(ds5)
+
+        us1 = Component.get_deconv_block(256, 256)(ds6)
+        us2 = Component.get_deconv_block(512, 256)(tf.concat([us1, ds5], axis=3))
+        us3 = Component.get_deconv_block(512, 128)(tf.concat([us2, ds4], axis=3))
+        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))
+        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))
+        out_layer = Component.get_deconv_block(64, 3, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
+
+        return tf.keras.Model(in_layer, out_layer)
+
+    @staticmethod
     def build_optical_synthesis_generator(img_size=256, noise_dim=4):
         """
         build the generator model that use the conventional reflection synthetic model.
