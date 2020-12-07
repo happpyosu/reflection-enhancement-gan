@@ -18,7 +18,7 @@ class Image2Reflection:
 
         # default noise dim is 4
         self.G = Network.build_multimodal_G(noise_dim=self.noise_dim)
-        self.D = Network.build_discriminator(img_size=self.img_size)
+        self.D = Network.build_multimodal_D(img_size=self.img_size, noise_dim=self.noise_dim)
 
         # dataset
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="SynDataset", mode="train")
@@ -90,10 +90,15 @@ class Image2Reflection:
         with tf.GradientTape() as G_tape, tf.GradientTape() as D_tape:
             # train D
             noise = self._gen_noise()
+
+            c_with_real = tf.concat([r, rb], axis=3)
             r_with_noise = tf.concat([r, noise], axis=3)
             fake_rb = self.G(r_with_noise)
-            on_fake1, on_fake2 = self.D(fake_rb)
-            on_real1, on_real2 = self.D(rb)
+
+            c_with_fake = tf.concat([r, fake_rb], axis=3)
+
+            on_fake1, on_fake2 = self.D(c_with_fake)
+            on_real1, on_real2 = self.D(c_with_real)
 
             D_loss1 = tf.reduce_mean((on_real1 - tf.ones_like(on_real1)) ** 2) + \
                       tf.reduce_mean((on_fake1 - tf.zeros_like(on_fake1)) ** 2)
@@ -111,11 +116,13 @@ class Image2Reflection:
             r_with_noise = tf.concat([r, noise], axis=3)
             fake_rb = self.G(r_with_noise)
 
+            c_with_fake = tf.concat([r, fake_rb], axis=3)
+
             # l1 loss
             l1_loss = 10 * tf.reduce_mean(tf.abs(fake_rb - rb))
 
             # gan loss
-            on_fake1, on_fake2 = self.D(fake_rb)
+            on_fake1, on_fake2 = self.D(c_with_fake)
             gan_loss = tf.reduce_mean((on_fake1 - tf.ones_like(on_fake1)) ** 2) + \
                        tf.reduce_mean((on_fake2 - tf.ones_like(on_fake1)) ** 2)
 
