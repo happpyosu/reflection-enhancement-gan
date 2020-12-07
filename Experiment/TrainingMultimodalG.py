@@ -116,8 +116,8 @@ class Image2Reflection:
 
             # gan loss
             on_fake1, on_fake2 = self.D(fake_rb)
-            gan_loss = tf.reduce_mean((on_fake1 - tf.ones_like(fake_rb)) ** 2) + \
-                       tf.reduce_mean((on_fake2 - tf.ones_like(fake_rb)) ** 2)
+            gan_loss = tf.reduce_mean((on_fake1 - tf.ones_like(on_fake1)) ** 2) + \
+                       tf.reduce_mean((on_fake2 - tf.ones_like(on_fake1)) ** 2)
 
             # modal seeking loss
             noise2 = self._gen_noise()
