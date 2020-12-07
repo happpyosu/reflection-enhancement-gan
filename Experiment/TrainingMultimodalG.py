@@ -14,6 +14,7 @@ class Image2Reflection:
         self.noise_dim = 4
         self.img_size = 256
         self.epoch = 100
+        self.EPS = 0.0000001
 
         # default noise dim is 4
         self.G = Network.build_multimodal_G(noise_dim=self.noise_dim)
@@ -53,22 +54,20 @@ class Image2Reflection:
         img_lists = []
         for _ in range(rows):
             img_list = []
-            t, r, m = next(iter)
-            t1 = tf.squeeze(t, axis=0)
+            _, r, rb, _ = next(iter)
             r1 = tf.squeeze(r, axis=0)
-            m1 = tf.squeeze(m, axis=0)
-            img_list.append(t1)
+            rb1 = tf.squeeze(rb, axis=0)
             img_list.append(r1)
-            img_list.append(m1)
+            img_list.append(rb1)
             for _ in range(cols):
                 z = self._gen_noise()
-                trn_concat = tf.concat([t, r, z], axis=3)
-                out = self.G(trn_concat)
+                r_with_noise = tf.concat([r, z], axis=3)
+                out = self.G(r_with_noise)
                 out = tf.squeeze(out, axis=0)
                 img_list.append(out)
             img_lists.append(img_list)
 
-        ImageUtils.plot_images(rows, cols + 3, img_lists, is_save=True, epoch_index=self.inc)
+        ImageUtils.plot_images(rows, cols + 2, img_lists, is_save=True, epoch_index=self.inc)
 
     def start_train_task(self):
         self.inc = 0
@@ -123,12 +122,13 @@ class Image2Reflection:
             r_with_noise2 = tf.concat([r, noise2], axis=3)
             fake_rb2 = self.G(r_with_noise2)
 
-            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / tf.reduce_sum(tf.abs(fake_rb2 - fake_rb))
+            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (tf.reduce_sum(tf.abs(fake_rb2 - fake_rb)) + self.EPS)
 
             G_loss = l1_loss + gan_loss + modal_seeking_loss
 
             grad_G = G_tape(G_loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
+
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(1)
