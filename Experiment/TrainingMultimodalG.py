@@ -133,7 +133,7 @@ class Image2Reflection:
 
             modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (tf.reduce_sum(tf.abs(fake_rb2 - fake_rb)) + self.EPS)
 
-            G_loss = l1_loss + gan_loss + modal_seeking_loss
+            G_loss = l1_loss + 0.1 * gan_loss + 0.1 * modal_seeking_loss
 
             grad_G = G_tape.gradient(G_loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
