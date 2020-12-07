@@ -13,7 +13,7 @@ class Network:
     """
 
     @staticmethod
-    def     build_multimodal_D(img_size=256):
+    def build_multimodal_D(img_size=256):
         """
         build the discriminator model for multi-modal gan.
         :param img_size: image size for synthetic image S and noise
@@ -38,7 +38,6 @@ class Network:
         out2 = d2(input_layer)
 
         return tf.keras.Model(input_layer, (out1, out2))
-
 
     @staticmethod
     def build_multimodal_G(img_size=256, noise_dim=4):

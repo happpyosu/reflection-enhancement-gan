@@ -7,7 +7,7 @@ from Dataset.dataset import DatasetFactory
 from utils.imageUtils import ImageUtils
 from utils import gpuutils
 
-
+# hahaha
 class Image2Reflection:
     def __init__(self):
         # config
@@ -35,6 +35,9 @@ class Image2Reflection:
         self.inc = 0
         self.save_every = 10
         self.output_every = 2
+
+        # build vgg19 feature extractor
+
 
     def _gen_noise(self):
         # generate a noise
@@ -84,6 +87,15 @@ class Image2Reflection:
                 self.output_middle_result()
         # save the final weight
         self.save_weights()
+
+    def l1_distance(self, x, y):
+        """
+        interface for calculating the l1 loss
+        :param x:
+        :param y:
+        :return:
+        """
+        return tf.reduce_mean(tf.abs(x - y))
 
     @tf.function
     def train_one_step(self, r, rb):
