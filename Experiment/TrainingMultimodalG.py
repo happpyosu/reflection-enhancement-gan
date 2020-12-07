@@ -18,7 +18,7 @@ class Image2Reflection:
 
         # default noise dim is 4
         self.G = Network.build_multimodal_G(noise_dim=self.noise_dim)
-        self.D = Network.build_multimodal_D(img_size=self.img_size, noise_dim=self.noise_dim)
+        self.D = Network.build_multimodal_D(img_size=self.img_size)
 
         # dataset
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="SynDataset", mode="train")

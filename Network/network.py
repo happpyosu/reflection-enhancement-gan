@@ -13,23 +13,23 @@ class Network:
     """
 
     @staticmethod
-    def     build_multimodal_D(img_size=256, noise_dim=4):
+    def     build_multimodal_D(img_size=256):
         """
         build the discriminator model for multi-modal gan.
         :param img_size: image size for synthetic image S and noise
         :return: two tf.keras.Model objects.
         """
-        input_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3+noise_dim))
+        input_layer = tf.keras.layers.Input(shape=(img_size, img_size, 6))
 
         d1 = tf.keras.Sequential([tf.keras.layers.AveragePooling2D(pool_size=(3, 3), strides=2),
-                                  Component.get_conv_block(3+noise_dim, 32, norm=False),
+                                  Component.get_conv_block(6, 32, norm=False),
                                   Component.get_conv_block(32, 64),
                                   Component.get_conv_block(64, 128),
                                   Component.get_conv_block(128, 256, s=1),
                                   Component.get_conv_block(256, 1, s=1, norm=False, non_linear='none')
                                   ])
 
-        d2 = tf.keras.Sequential([Component.get_conv_block(3+noise_dim, 64, norm=False),
+        d2 = tf.keras.Sequential([Component.get_conv_block(6, 64, norm=False),
                                   Component.get_conv_block(64, 128),
                                   Component.get_conv_block(128, 256),
                                   Component.get_conv_block(256, 1, norm=False, non_linear='none')])
