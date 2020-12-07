@@ -27,7 +27,7 @@ class _SynDataset:
         - rb (reflection blur layer)
         - m (mixture of t and r)
     """
-    def __init__(self, root='../dataset-root/', batch_size=2, mode='train'):
+    def __init__(self, root='../dataset-root/', batch_size=1, mode='train'):
         """
 
         :param root: the dataset root to the images that used to train the reflection image generator
