@@ -11,7 +11,7 @@ class DatasetFactory:
         if name == "RealDataset":
             return _RealDataset(mode=mode, batch_size=batch_size).get_tf_dataset()
         elif name == 'SynDataset':
-            return _SynDataset(mode=mode, batch_size=batch_size).get_tf_dataset()
+            return _SynDataset(mode=mode, batch_size=1).get_tf_dataset()
 
         else:
             raise ValueError("Invalid dataset name, got '" + name + "', please check spelling mistakes.")
