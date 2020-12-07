@@ -89,7 +89,9 @@ class Image2Reflection:
     def train_one_step(self, r, rb):
         with tf.GradientTape() as G_tape, tf.GradientTape() as D_tape:
             # train D
-            fake_rb = self.G(r)
+            noise = self._gen_noise()
+            r_with_noise = tf.concat([r, noise], axis=3)
+            fake_rb = self.G(r_with_noise)
             on_fake1, on_fake2 = self.D(fake_rb)
             on_real1, on_real2 = self.D(rb)
 
@@ -131,7 +133,7 @@ class Image2Reflection:
 
 
 if __name__ == '__main__':
-    gpuutils.which_gpu_to_use(1)
+    gpuutils.which_gpu_to_use(2)
     gan = Image2Reflection()
     # gan.load_weights(100)
     # gan.output_middle_result(4, 5)
