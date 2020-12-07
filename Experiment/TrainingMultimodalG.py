@@ -128,7 +128,7 @@ class Image2Reflection:
 
             G_loss = l1_loss + gan_loss + modal_seeking_loss
 
-            grad_G = G_tape(G_loss, self.G.trainable_variables)
+            grad_G = G_tape.gradient(G_loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
 
 
