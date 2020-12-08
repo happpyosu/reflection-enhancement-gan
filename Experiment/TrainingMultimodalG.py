@@ -2,12 +2,12 @@ import tensorflow as tf
 import sys
 
 sys.path.append('../')
-from Network.network import Network
+from Network.network import Network, Vgg19FeatureExtractor
 from Dataset.dataset import DatasetFactory
 from utils.imageUtils import ImageUtils
 from utils import gpuutils
 
-# hahaha
+
 class Image2Reflection:
     def __init__(self):
         # config
@@ -37,7 +37,7 @@ class Image2Reflection:
         self.output_every = 2
 
         # build vgg19 feature extractor
-
+        self.vgg19 = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
 
     def _gen_noise(self):
         # generate a noise
@@ -97,6 +97,19 @@ class Image2Reflection:
         """
         return tf.reduce_mean(tf.abs(x - y))
 
+    def compute_perceptual_loss(self, img1, img2):
+        f1 = self.vgg19(img1)
+        f2 = self.vgg19(img2)
+
+        # l1 loss
+        loss = self.l1_distance(img1, img2)
+
+        # perceptual loss
+        for fe1, fe2 in zip(f1, f2):
+            loss += self.l1_distance(fe1, fe2)
+
+        return loss
+
     @tf.function
     def train_one_step(self, r, rb):
         with tf.GradientTape() as G_tape, tf.GradientTape() as D_tape:
@@ -131,7 +144,9 @@ class Image2Reflection:
             c_with_fake = tf.concat([r, fake_rb], axis=3)
 
             # l1 loss
-            l1_loss = 10 * tf.reduce_mean(tf.abs(fake_rb - rb))
+            # l1_loss = 10 * tf.reduce_mean(tf.abs(fake_rb - rb))
+            # replaced with the perceptual loss
+            l1_loss = 10 * self.compute_perceptual_loss(fake_rb, rb)
 
             # gan loss
             on_fake1, on_fake2 = self.D(c_with_fake)
@@ -143,7 +158,7 @@ class Image2Reflection:
             r_with_noise2 = tf.concat([r, noise2], axis=3)
             fake_rb2 = self.G(r_with_noise2)
 
-            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (tf.reduce_sum(tf.abs(fake_rb2 - fake_rb)) + self.EPS)
+            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (self.compute_perceptual_loss(fake_rb2, fake_rb) + self.EPS)
 
             G_loss = l1_loss + 0.1 * gan_loss + 0.1 * modal_seeking_loss
 
