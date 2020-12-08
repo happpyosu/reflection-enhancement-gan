@@ -11,13 +11,14 @@ from utils import gpuutils
 class Image2Reflection:
     def __init__(self):
         # config
-        self.noise_dim = 4
+        self.noise_dim = 1
         self.img_size = 256
         self.epoch = 100
         self.EPS = 0.0000001
 
         # default noise dim is 4
-        self.G = Network.build_multimodal_G(noise_dim=self.noise_dim)
+        # self.G = Network.build_multimodal_G(noise_dim=self.noise_dim)
+        self.G = Network.build_simple_G(noise_dim=self.noise_dim)
         self.D = Network.build_multimodal_D(img_size=self.img_size)
 
         # dataset

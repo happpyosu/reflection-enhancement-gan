@@ -2,7 +2,8 @@ from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
-from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, MisalignedRemovalComponent, BeyondLinearityComponent
+from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, \
+    MisalignedRemovalComponent, BeyondLinearityComponent
 
 
 class Network:
@@ -11,6 +12,29 @@ class Network:
         @Author: chen hao
         @Date:   2020.11.05
     """
+
+    @staticmethod
+    def build_simple_G(img_size=256, noise_dim=1):
+        """
+        build a simple generator for the regan.
+        :param img_size:
+        :return:
+        """
+        input_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3 + noise_dim))
+
+        inp, noise = tf.split(input_layer, [3, noise_dim], axis=3)
+
+        # 256 -> 128
+        ds1 = Component.get_conv_block(noise_dim, 64)(noise)
+        # 128 -> 64
+        ds2 = Component.get_conv_block(64, 128)(ds1)
+        # 64 -> (32, 32, 128) (32, 32, 3, 3)
+        ds3 = Component.get_conv_block(128, 9)(ds2)
+        kernel = tf.reshape(ds3, [32, 32, 3, 3])
+
+        blurred_R = tf.nn.conv2d(inp, kernel, strides=[1, 1, 1, 1], padding='SAME')
+
+        return keras.Model(input_layer, blurred_R)
 
     @staticmethod
     def build_multimodal_D(img_size=256):
@@ -488,7 +512,8 @@ class BeyondLinearityNetworks:
             deconv5 = BeyondLinearityComponent.get_deconv_block(32, 16)(tf.concat([deconv4, conv2], axis=3))
 
             # 128 -> 256
-            out = BeyondLinearityComponent.get_deconv_block(16, 3, non_linear=non_linear)(tf.concat([deconv5, conv1], axis=3))
+            out = BeyondLinearityComponent.get_deconv_block(16, 3, non_linear=non_linear)(
+                tf.concat([deconv5, conv1], axis=3))
 
             return out
 
@@ -530,7 +555,6 @@ class Vgg19FeatureExtractor:
         return keras.Model(vgg19.input, features_list)
 
 
-
 if __name__ == '__main__':
-    extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
-    extractor.summary()
+    G = Network.build_simple_G()
+    G.summary()
