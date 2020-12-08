@@ -147,7 +147,7 @@ class Image2Reflection:
             # l1 loss
             # l1_loss = 10 * tf.reduce_mean(tf.abs(fake_rb - rb))
             # replaced with the perceptual loss
-            l1_loss = self.compute_perceptual_loss(fake_rb, rb)
+            l1_loss = self.l1_distance(fake_rb, rb)
 
             # gan loss
             on_fake1, on_fake2 = self.D(c_with_fake)
@@ -159,9 +159,9 @@ class Image2Reflection:
             r_with_noise2 = tf.concat([r, noise2], axis=3)
             fake_rb2 = self.G(r_with_noise2)
 
-            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (self.compute_perceptual_loss(fake_rb2, fake_rb) + self.EPS)
+            modal_seeking_loss = tf.reduce_sum(tf.abs(noise2 - noise)) / (self.l1_distance(fake_rb2, fake_rb) + self.EPS)
 
-            G_loss = l1_loss + 0.1 * gan_loss + 0.001 * modal_seeking_loss
+            G_loss = l1_loss + 0.01 * gan_loss + 0.1 * modal_seeking_loss
 
             grad_G = G_tape.gradient(G_loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
