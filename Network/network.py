@@ -65,12 +65,17 @@ class Network:
         # 128 -> 64
         ds2 = Component.get_conv_block(128, 256)(ds1)
         # 64 -> (32, 32, 128) (32, 32, 3, 3)
-        ds3 = Component.get_conv_block(256, 9)(ds2)
+        ds3 = Component.get_conv_block(256, 64)(ds2)
+
+        ds4 = Component.get_conv_block(64, 1)(ds3)
+
+        fl = layers.Flatten()(ds4)
+
+        ker = layers.Dense(32*32*3*3, activation='relu')(fl)
 
         # mask: 256, 256
         mask = Component.get_deconv_block(128, 3)(ds1)
-
-        kernel = tf.reshape(ds3, [32, 32, 3, 3])
+        kernel = tf.reshape(ker, [32, 32, 3, 3])
 
         blurred_R = tf.nn.conv2d(inp, kernel, strides=[1, 1, 1, 1], padding='SAME')
         blurred_R = layers.multiply([blurred_R, mask])
