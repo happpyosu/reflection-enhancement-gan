@@ -147,7 +147,7 @@ class Image2Reflection:
             # l1 loss
             # l1_loss = 10 * tf.reduce_mean(tf.abs(fake_rb - rb))
             # replaced with the perceptual loss
-            l1_loss = self.l1_distance(fake_rb, rb)
+            l1_loss = 10 * self.l1_distance(fake_rb, rb)
 
             # gan loss
             on_fake1, on_fake2 = self.D(c_with_fake)
