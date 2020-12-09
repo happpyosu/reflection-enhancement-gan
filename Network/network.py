@@ -14,6 +14,42 @@ class Network:
     """
 
     @staticmethod
+    def build_modal_encoder(img_size=256, code_dim=32):
+        """
+        reflection modal encoder, which encodes [r, rb] -> low-dim latent code
+        :param img_size: the image size
+        :return: tf.Model
+        """
+        input_layer = keras.layers.Input(shape=(img_size, img_size, 3 + 3))
+        #256
+        ds1 = Component.get_conv_block(3 + 3, 32, norm=False)(input_layer)
+        #128
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        # 64
+        ds3 = Component.get_conv_block(64, 128)(ds2)
+        # 32
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        # 16 * 16  * 4
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        # 8 * 8 * 4
+        ds6 = Component.get_conv_block(256, 4)(ds5)
+
+        flat = layers.Flatten()(ds6)
+
+        out = layers.Dense(code_dim)(flat)
+
+        return keras.Model(input_layer, out)
+
+    @staticmethod
+    def build_modal_decoder(img_size=256):
+        """
+        reflection modal decoder, which accepts [code_dim, ]
+        :param img_size:
+        :return:
+        """
+        pass
+
+    @staticmethod
     def build_simple_G(img_size=256, noise_dim=1):
         """
         build a simple generator for the regan.
@@ -25,14 +61,19 @@ class Network:
         inp, noise = tf.split(input_layer, [3, noise_dim], axis=3)
 
         # 256 -> 128
-        ds1 = Component.get_conv_block(noise_dim, 64)(noise)
+        ds1 = Component.get_conv_block(noise_dim, 128)(noise)
         # 128 -> 64
-        ds2 = Component.get_conv_block(64, 128)(ds1)
+        ds2 = Component.get_conv_block(128, 256)(ds1)
         # 64 -> (32, 32, 128) (32, 32, 3, 3)
-        ds3 = Component.get_conv_block(128, 9)(ds2)
+        ds3 = Component.get_conv_block(256, 9)(ds2)
+
+        # mask: 256, 256
+        mask = Component.get_deconv_block(128, 3)(ds1)
+
         kernel = tf.reshape(ds3, [32, 32, 3, 3])
 
         blurred_R = tf.nn.conv2d(inp, kernel, strides=[1, 1, 1, 1], padding='SAME')
+        blurred_R = layers.multiply([blurred_R, mask])
 
         return keras.Model(input_layer, blurred_R)
 
