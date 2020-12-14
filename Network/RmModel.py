@@ -86,6 +86,7 @@ class PerceptionRemovalModel:
             # extract hyper-col feature
             features_list = self.feature_extractor(m)
             features = m
+
             for f in features_list:
                 resized = tf.image.resize(f, (self.img_size, self.img_size))
                 features = tf.concat([features, resized], axis=3)

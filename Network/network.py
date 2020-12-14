@@ -325,7 +325,7 @@ class PerceptionRemovalNetworks:
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 32))
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 64))
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 1))
-        model.add(layers.Conv2D(filters=64, kernel_size=(1, 1), padding='same'))
+        model.add(layers.Conv2D(filters=6, kernel_size=(1, 1), padding='same'))
 
         return model
 
