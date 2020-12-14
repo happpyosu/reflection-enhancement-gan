@@ -93,11 +93,13 @@ class PerceptionRemovalModel:
             # forward
             pred = self.rm(features, training=True)
             pred_t, pred_r = tf.split(pred, num_or_size_splits=2, axis=3)
+            pred_t = tf.squeeze(pred_t, axis=0)
+            pred_r = tf.squeeze(pred_r, axis=0)
 
             del features_list
+
             img_list.append(pred_t)
             img_list.append(pred_r)
-
             img_lists.append(img_list)
 
         ImageUtils.plot_images(rows, 3 + 2, img_lists, is_save=True, epoch_index=self.inc)
