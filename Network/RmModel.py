@@ -243,6 +243,9 @@ class BidirectionalRemovalModel:
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
+    def start_train_task(self):
+        pass
+
     @tf.function
     def train_one_step(self, t, r, m):
         with tf.GradientTape() as g0_tape, tf.GradientTape() as d_tape, \

@@ -3,11 +3,21 @@ import sys
 sys.path.append('../')
 import Network.RmModel as Rm
 
-if __name__ == '__main__':
-    rm = Rm.PerceptionRemovalModel()
-    rm.output_middle_result()
 
-# class TrainingRmModel:
-#     def __init__(self, which_model: int):
-#         self.which = which_model
+class TrainingRmModel:
+    def __init__(self, which_model: int):
+        if which_model == 0:
+            self.model = Rm.PerceptionRemovalModel()
+        elif which_model == 1:
+            self.model = Rm.BidirectionalRemovalModel()
+
+    def train(self):
+        self.model.start_train_task()
+
+
+if __name__ == '__main__':
+    rm = TrainingRmModel(0)
+    rm.train()
+
+
 
