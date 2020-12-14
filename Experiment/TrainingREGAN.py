@@ -254,8 +254,8 @@ class ReflectionGAN:
 
 
 if __name__ == '__main__':
-    gpuutils.which_gpu_to_use(1)
+    # gpuutils.which_gpu_to_use(1)
     gan = ReflectionGAN()
-    # gan.load_weights(100)
-    # gan.output_middle_result(4, 5)
-    gan.start_train_task()
+    gan.load_weights(20)
+    gan.output_middle_result(4, 8)
+    # gan.start_train_task()
