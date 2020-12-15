@@ -217,6 +217,9 @@ class BidirectionalRemovalModel:
     """
 
     def __init__(self):
+        # training EPOCH
+        self.EPOCH = 100
+
         # epsilon for log function
         self.EPS = 1e-12
 
@@ -243,8 +246,58 @@ class BidirectionalRemovalModel:
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
+        # config logging
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    def save_weights(self):
+        self.g0.save_weights('../save/' + 'bidirRm_g0_' + str(self.inc) + '.h5')
+        self.H.save_weights('../save/' + 'bidirRm_H_' + str(self.inc) + '.h5')
+        self.g1.save_weights('../save/' + 'bidirRm_g1_' + str(self.inc) + '.h5')
+
     def start_train_task(self):
-        pass
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+
+            if self.inc % self.save_every:
+                self.save_weights()
+
+            if self.inc % self.output_every:
+                self.output_middle_result()
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+
+            pred_B = self.g0(m)
+            IB = tf.concat([m, t], axis=3)
+            pred_R = self.H(IB)
+            IR = tf.concat([m, r], axis=3)
+            pred_B1 = self.g1(IR)
+
+            B0 = tf.squeeze(pred_B, axis=0)
+            R = tf.squeeze(pred_R, axis=0)
+            B1 = tf.squeeze(pred_B1, axis=0)
+
+            img_list.append(B0)
+            img_list.append(R)
+            img_list.append(B1)
+
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 3, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):

@@ -16,7 +16,7 @@ class TrainingRmModel:
 
 
 if __name__ == '__main__':
-    rm = TrainingRmModel(0)
+    rm = TrainingRmModel(1)
     rm.train()
 
 
