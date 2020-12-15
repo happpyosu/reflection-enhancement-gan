@@ -218,7 +218,7 @@ class ReflectionSynthesizer:
 # test
 if __name__ == '__main__':
     s = ReflectionSynthesizer()
-    for i in range(2000):
+    for i in range(5000):
         print(i)
         next(s)
 

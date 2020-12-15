@@ -2,6 +2,7 @@ import tensorflow as tf
 import sys
 sys.path.append('../')
 import Network.RmModel as Rm
+from utils import gpuutils
 
 
 class TrainingRmModel:
@@ -16,6 +17,7 @@ class TrainingRmModel:
 
 
 if __name__ == '__main__':
+    gpuutils.which_gpu_to_use(0)
     rm = TrainingRmModel(1)
     rm.train()
 
