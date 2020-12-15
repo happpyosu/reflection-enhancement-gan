@@ -58,7 +58,7 @@ class ReflectionGAN:
 
         # config logging
         self.inc = 0
-        self.save_every = 10
+        self.save_every = 2
         self.output_every = 2
 
     def _gen_noise(self):
