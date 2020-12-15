@@ -34,5 +34,6 @@ class ImageUtils:
 
         if is_save:
             plt.tight_layout()
-            plt.savefig('../save/' + str(epoch_index) + '.jpg', dpi=300)
+            plt.subplots_adjust(wspace=0, hspace=0)
+            plt.savefig('../save/' + str(epoch_index) + '.jpg', dpi=600)
 

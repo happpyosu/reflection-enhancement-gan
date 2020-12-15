@@ -221,10 +221,10 @@ class ReflectionGAN:
             print('G_GAN_loss', str(G_GAN_Loss))
 
             # KL-divergence loss for G and E
-            KL_div = 0.01 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
+            KL_div = 0.1 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
 
             # step. 4. Reconstruct of ground truth image
-            img_recon_loss = 10 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
+            img_recon_loss = 1 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
 
             # total loss for Encoder and Generator
             E_G_Loss = G_GAN_Loss + KL_div + img_recon_loss
@@ -256,6 +256,6 @@ class ReflectionGAN:
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)
     gan = ReflectionGAN()
-    #gan.load_weights(20)
-    #gan.output_middle_result(4, 8)
+    #gan.load_weights(40)
+    #gan.output_middle_result(10, 12)
     gan.start_train_task()
