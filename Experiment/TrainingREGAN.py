@@ -114,6 +114,23 @@ class ReflectionGAN:
         self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
         # self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
 
+    def forward_G(self, t, r, z):
+        cat_z = tf.concat([t, r, z], axis=3)
+        fake_m = self.G(cat_z)
+        return fake_m
+
+    def forward_E(self, t, r, m):
+        cat_trm = tf.concat([t, r, m], axis=3)
+        mu, log_var = self.E(cat_trm)
+        std = tf.exp(log_var / 2)
+        z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
+        z = (z * std) + mu
+        z = tf.tile(z, [1, self.img_size, self.img_size, 1])
+        # cat_z = tf.concat([t, r, z], axis=3)
+        # fake_m = self.G(cat_z)
+
+        return z
+
     @tf.function
     def train_one_step(self, t, r, m):
         """
