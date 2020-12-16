@@ -53,34 +53,31 @@ class _TestDataset:
         self._tf_dataset = tf.data.Dataset. \
             from_tensor_slices(self.file_list). \
             map(self._map_fun, tf.data.experimental.AUTOTUNE). \
-            batch(batch_size=self.batch_size, drop_remainder=True)
+            batch(batch_size=self.batch_size, drop_remainder=True).shuffle(50, reshuffle_each_iteration=True)
 
     def _map_fun(self, x):
         t_path_tensor = self.t_dir + x
         r_path_tensor = self.r_dir + x
-        rb_path_tensor = self.rb_dir + x
         m_path_tensor = self.m_dir + x
 
         img_t = tf.io.read_file(t_path_tensor)
         img_r = tf.io.read_file(r_path_tensor)
-        img_rb = tf.io.read_file(rb_path_tensor)
         img_m = tf.io.read_file(m_path_tensor)
 
         img_t = tf.image.decode_jpeg(img_t)
         img_r = tf.image.decode_jpeg(img_r)
-        img_rb = tf.image.decode_jpeg(img_rb)
         img_m = tf.image.decode_jpeg(img_m)
 
         # normalize to [-1, 1]
         img_t = 2 * (tf.cast(tf.image.resize(img_t, [256, 256]), dtype=tf.float32) / 255) - 1
         img_r = 2 * (tf.cast(tf.image.resize(img_r, [256, 256]), dtype=tf.float32) / 255) - 1
-        img_rb = 2 * (tf.cast(tf.image.resize(img_rb, [256, 256]), dtype=tf.float32) / 255) - 1
         img_m = 2 * (tf.cast(tf.image.resize(img_m, [256, 256]), dtype=tf.float32) / 255) - 1
 
-        return img_t, img_r, img_rb, img_m
+        return img_t, img_r, img_m
 
     def get_tf_dataset(self):
         return self._tf_dataset
+
 
 class _SynDataset:
     """
@@ -154,6 +151,7 @@ class _SynDataset:
 
     def get_tf_dataset(self):
         return self._tf_dataset
+
 
 class _RealDataset:
     """

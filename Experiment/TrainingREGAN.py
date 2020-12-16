@@ -29,7 +29,7 @@ class ReflectionGAN:
 
     def __init__(self):
         # config
-        self.noise_dim = 8
+        self.noise_dim = 4
         self.img_size = 256
         self.epoch = 100
 
@@ -233,7 +233,7 @@ class ReflectionGAN:
             GAN_loss_cLR_2 = tf.reduce_mean((fake_D2_2 - tf.ones_like(fake_D2_2)) ** 2)
 
             # gan loss for G
-            G_GAN_Loss = GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2
+            G_GAN_Loss = 0.1 * (GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2)
 
             print('G_GAN_loss', str(G_GAN_Loss))
 

@@ -2,7 +2,8 @@ from Experiment.TrainingREGAN import ReflectionGAN
 from utils.imageUtils import ImageUtils
 from Dataset.dataset import DatasetFactory
 import tensorflow as tf
-
+import shutil
+import os
 
 class ReflectionGANTest:
     def __init__(self, which_epoch):
@@ -12,10 +13,23 @@ class ReflectionGANTest:
         # load epoch weights
         self.gan.load_weights(epoch=which_epoch)
 
+        # check path exists
+        if not os.path.exists('../dataset-root/test'):
+            os.makedirs('../dataset-root/test')
+
+        if not os.path.exists('../dataset-root/test/t'):
+            os.makedirs('../dataset-root/test/t')
+
+        if not os.path.exists('../dataset-root/test/r'):
+            os.makedirs('../dataset-root/test/r')
+
+        if not os.path.exists('../dataset-root/test/m'):
+            os.makedirs('../dataset-root/test/m')
+
         # test set
         # self.testSet = DatasetFactory.get_dataset_by_name("TestDataset")
 
-    def modal_transfer(self, idx1, idx2):
+    def modal_transfer(self, idx1: int, idx2: int):
         """
         Test the modal transfer function. In the dataset, assume we have two sets of image pair
         (t1, r1, m1) and (t2, r2, m2), the modal transfer test is done as the following steps:
@@ -26,6 +40,27 @@ class ReflectionGANTest:
         :param idx2: image index2 in val set
         :return: None
         """
+
+        # copy target image to the test dir
+        shutil.copyfile(src='../dataset-root/train/t/' + str(idx1) + '.jpg',
+                        dst='../dataset-root/test/t/' + str(idx1) + '.jpg')
+
+        shutil.copyfile(src='../dataset-root/train/t/' + str(idx2) + '.jpg',
+                        dst='../dataset-root/test/t/' + str(idx2) + '.jpg')
+
+        shutil.copyfile(src='../dataset-root/train/r/' + str(idx1) + '.jpg',
+                        dst='../dataset-root/test/r/' + str(idx1) + '.jpg')
+
+        shutil.copyfile(src='../dataset-root/train/r/' + str(idx2) + '.jpg',
+                        dst='../dataset-root/test/r/' + str(idx2) + '.jpg')
+
+        shutil.copyfile(src='../dataset-root/train/m/' + str(idx1) + '.jpg',
+                        dst='../dataset-root/test/m/' + str(idx1) + '.jpg')
+
+        shutil.copyfile(src='../dataset-root/train/m/' + str(idx2) + '.jpg',
+                        dst='../dataset-root/test/m/' + str(idx2) + '.jpg')
+
+
         img_lists = []
         img_list1 = []
         img_list2 = []
@@ -55,8 +90,9 @@ class ReflectionGANTest:
         img_lists.append(img_list1)
         img_lists.append(img_list2)
 
-        ImageUtils.plot_images(2, 4, img_lists, is_save=True, epoch_index=888)
+        ImageUtils.plot_images(2, 4, img_lists, is_save=True, epoch_index=101)
 
 
 if __name__ == '__main__':
     T = ReflectionGANTest(which_epoch=20)
+    T.modal_transfer(idx1=22, idx2=67)
