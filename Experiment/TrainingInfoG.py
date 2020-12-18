@@ -129,7 +129,7 @@ class ReflectionInfoG:
 
             d_inp = tf.concat([t, r, gen_img], axis=3)
             validity, _, _ = self.D(d_inp)
-            g_loss = tf.reduce_mean((validity - tf.ones_like(validity)) ** 2)
+            g_loss = tf.reduce_mean((validity - tf.ones_like(validity)) ** 2) + 10 * tf.reduce_mean(tf.abs(gen_img - m))
 
             g_grad = G_tape.gradient(g_loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(g_grad, self.G.trainable_variables))
