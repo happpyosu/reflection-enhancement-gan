@@ -165,12 +165,17 @@ class ReflectionInfoG:
             fake_inp = tf.concat([t, r, gen_img], axis=3)
             _, pred_label, pred_code = self.D(fake_inp)
 
-            info_loss = self.cce(gt_label, pred_label, from_logits=True) + 0.1 * tf.reduce_mean((z1 - pred_code) ** 2)
+            info_loss = 10 * self.cce(gt_label, pred_label, from_logits=True) + 1 * tf.reduce_mean((z1 - pred_code) ** 2)
             g_grad = G_tape.gradient(info_loss, self.G.trainable_variables)
             d_grad = D_tape.gradient(info_loss, self.D.trainable_variables)
 
             self.optimizer_G.apply_gradients(zip(g_grad, self.G.trainable_variables))
             self.optimizer_D.apply_gradients(zip(d_grad, self.D.trainable_variables))
+
+        # with tf.GradientTape() as G_tape:
+        #     z0 = self.gen_normal_noise()
+        #     z1 = self.gen_uniform_noise()
+        #     z2 = self.gen_class(c)
 
 
 if __name__ == '__main__':
