@@ -90,9 +90,13 @@ class ReflectionGANTest:
         img_lists.append(img_list1)
         img_lists.append(img_list2)
 
-        ImageUtils.plot_images(2, 4, img_lists, is_save=True, epoch_index=101)
+        ImageUtils.plot_images(2, 4, img_lists, is_save=True, epoch_index=28)
+
+        shutil.rmtree('../dataset-root/test/m')
+        shutil.rmtree('../dataset-root/test/t')
+        shutil.rmtree('../dataset-root/test/r')
 
 
 if __name__ == '__main__':
-    T = ReflectionGANTest(which_epoch=20)
-    T.modal_transfer(idx1=22, idx2=67)
+    T = ReflectionGANTest(which_epoch=28)
+    T.modal_transfer(idx1=286, idx2=631)

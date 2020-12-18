@@ -143,7 +143,7 @@ class ReflectionSynthesizer:
         # random kind to decide which kernel to use.
         rand_kind = np.random.random()
 
-        if rand_kind >= 0.5:
+        if rand_kind >= 0:
             r_blur = self._gaussian_blur(r)
         else:
             r_blur = self._two_peak_blur(r)
@@ -215,10 +215,11 @@ class ReflectionSynthesizer:
 
         return self.counter
 
+
 # test
 if __name__ == '__main__':
-    s = ReflectionSynthesizer()
-    for i in range(5000):
+    s = ReflectionSynthesizer(out_path='../SynDataset/out/0')
+    for i in range(1000):
         print(i)
         next(s)
 

@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
 from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, \
-    MisalignedRemovalComponent, BeyondLinearityComponent
+    MisalignedRemovalComponent, BeyondLinearityComponent, InfoGComponent
 
 
 class Network:
@@ -21,9 +21,9 @@ class Network:
         :return: tf.Model
         """
         input_layer = keras.layers.Input(shape=(img_size, img_size, 3 + 3))
-        #256
+        # 256
         ds1 = Component.get_conv_block(3 + 3, 32, norm=False)(input_layer)
-        #128
+        # 128
         ds2 = Component.get_conv_block(32, 64)(ds1)
         # 64
         ds3 = Component.get_conv_block(64, 128)(ds2)
@@ -71,7 +71,7 @@ class Network:
 
         fl = layers.Flatten()(ds4)
 
-        ker = layers.Dense(32*32*3*3, activation='relu')(fl)
+        ker = layers.Dense(32 * 32 * 3 * 3, activation='relu')(fl)
 
         # mask: 256, 256
         mask = Component.get_deconv_block(128, 3)(ds1)
@@ -601,6 +601,55 @@ class Vgg19FeatureExtractor:
         return keras.Model(vgg19.input, features_list)
 
 
+class InfoGNetworks:
+    @staticmethod
+    def build_Generator(img_size=256, input_dim=8):
+        model = keras.Sequential()
+
+        model.add(layers.InputLayer(input_shape=(img_size, img_size, input_dim)))
+
+        # hidden conv layers
+        model.add(InfoGComponent.get_conv_block(f=128))
+        model.add(InfoGComponent.get_conv_block(f=128))
+        model.add(InfoGComponent.get_conv_block(f=256))
+        model.add(InfoGComponent.get_conv_block(f=64))
+
+        # output layer
+        model.add(layers.Conv2D(filters=3, kernel_size=3, padding='same', activation='tanh'))
+
+        return model
+
+    @staticmethod
+    def build_Discriminator(img_size=256, n_class=2, code_dim=4):
+        def build_conv():
+            model = keras.Sequential()
+
+            # fully-conv layers
+            model.add(InfoGComponent.get_discriminator_block(16, bn=False))
+            model.add(InfoGComponent.get_discriminator_block(32))
+            model.add(InfoGComponent.get_discriminator_block(64))
+            model.add(InfoGComponent.get_discriminator_block(128))
+
+            return model
+
+        inp = keras.Input(shape=(img_size, img_size, 9))
+        conv = build_conv()(inp)
+
+        # flatten to one-dim
+        fl = layers.Flatten()(conv)
+
+        # score of 0~1
+        adv_out = layers.Dense(1, activation='sigmoid')(fl)
+
+        # classify to n classes
+        aux_out = layers.Dense(n_class)(fl)
+
+        # latent code regression
+        latent_out = layers.Dense(code_dim)(fl)
+
+        return keras.Model(inp, [adv_out, aux_out, latent_out])
+
+
 if __name__ == '__main__':
-    G = Network.build_simple_G()
-    G.summary()
+    D = InfoGNetworks.build_Discriminator()
+    D.summary()

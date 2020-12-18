@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-
+import numpy as np
 
 class DatasetFactory:
     """
@@ -223,3 +223,103 @@ class _RealDataset:
 
     def get_tf_dataset(self):
         return self._tf_dataset
+
+
+class CategoricalReflectionDataset:
+    """
+    This class used to build Categorical reflection image dataset.
+    The dataset should be placed using the following file tree structure.
+    n refer to the nums of reflection type in the dataset.
+    - train
+        - 1
+            - t
+            - r
+            - m
+
+        - 2
+            - t
+            - r
+            - m
+        - 3
+            - t
+            - r
+            - m
+        ...
+        - n
+    This class can produce
+    """
+    def __init__(self, root='../dataset-root/train', step_per_epoch=4000):
+        # batch size
+        self.batch_size = 1
+
+        # dataset root
+        self.root = root
+
+        # total step for each epoch
+        self.step_per_epoch = step_per_epoch
+
+        dirs = os.listdir(root)
+
+        # reflection classes nums
+        self.classes_num = len(dirs)
+
+        # used to record how many images are in each sub-dataset
+        self.file_lists = []
+        self.len_list = []
+
+        # init file list
+        for dir in dirs:
+            path = os.path.join(root, dir, 'm')
+            self.file_lists.append(path)
+            self.len_list.append(len(path))
+
+        # inc counter
+        self.inc = 0
+
+    def __iter__(self):
+        self.inc = 0
+        return self
+
+    def __next__(self):
+        self.inc += 1
+
+        if self.inc > self.step_per_epoch:
+            raise StopIteration
+
+        # randomly select a class
+        which_class = np.random.randint(0, self.classes_num)
+
+        # randomly select a image
+        which_image = np.random.randint(0, self.len_list[which_class])
+
+        # image file name
+        file_name = self.file_lists[which_class][which_image]
+
+        t_path_tensor = os.path.join(self.root, str(which_class), 't', file_name)
+        r_path_tensor = os.path.join(self.root, str(which_class), 'r', file_name)
+        m_path_tensor = os.path.join(self.root, str(which_class), 'm', file_name)
+
+        img_t = tf.io.read_file(t_path_tensor)
+        img_r = tf.io.read_file(r_path_tensor)
+        img_m = tf.io.read_file(m_path_tensor)
+
+        img_t = tf.image.decode_jpeg(img_t)
+        img_r = tf.image.decode_jpeg(img_r)
+        img_m = tf.image.decode_jpeg(img_m)
+
+        # normalize to [-1, 1]
+        img_t = 2 * (tf.cast(tf.image.resize(img_t, [256, 256]), dtype=tf.float32) / 255) - 1
+        img_r = 2 * (tf.cast(tf.image.resize(img_r, [256, 256]), dtype=tf.float32) / 255) - 1
+        img_m = 2 * (tf.cast(tf.image.resize(img_m, [256, 256]), dtype=tf.float32) / 255) - 1
+
+        return img_t, img_r, img_m, tf.one_hot([which_class], self.classes_num)
+
+
+
+
+
+
+
+
+
+

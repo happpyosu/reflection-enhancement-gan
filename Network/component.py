@@ -399,7 +399,26 @@ class BeyondLinearityComponent:
         return keras.Model(inp, out)
 
 
+class InfoGComponent:
+    @staticmethod
+    def get_conv_block(f=64, k=3):
+        model = keras.Sequential()
+        model.add(layers.Conv2D(filters=f, kernel_size=k, padding='same'))
+        model.add(layers.BatchNormalization())
+        model.add(layers.LeakyReLU())
+        return model
 
+    @staticmethod
+    def get_discriminator_block(out_filters, bn=True):
+        model = keras.Sequential()
+        model.add(layers.Conv2D(filters=out_filters, kernel_size=3, strides=2, padding='same'))
+        model.add(layers.LeakyReLU())
+        model.add(layers.SpatialDropout2D(0.25))
+
+        if bn:
+            model.add(layers.BatchNormalization())
+
+        return model
 
 if __name__ == '__main__':
     b = MisalignedRemovalComponent.get_pyramid_pooling_block(feat_sz=256, in_channels=256, out_channels=256,
