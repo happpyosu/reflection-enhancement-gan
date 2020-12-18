@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../')
 from Network.network import InfoGNetworks
 import tensorflow as tf
 from Dataset.dataset import CategoricalReflectionDataset
