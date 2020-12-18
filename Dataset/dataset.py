@@ -270,8 +270,9 @@ class CategoricalReflectionDataset:
         # init file list
         for dir in dirs:
             path = os.path.join(root, dir, 'm')
-            self.file_lists.append(path)
-            self.len_list.append(len(path))
+            files = os.listdir(path)
+            self.file_lists.append(files)
+            self.len_list.append(len(files))
 
         # inc counter
         self.inc = 0
