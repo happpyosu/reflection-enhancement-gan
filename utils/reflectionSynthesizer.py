@@ -219,7 +219,7 @@ class ReflectionSynthesizer:
 # test
 if __name__ == '__main__':
     s = ReflectionSynthesizer(out_path='../SynDataset/out/0')
-    for i in range(1000):
+    for i in range(2000):
         print(i)
         next(s)
 
