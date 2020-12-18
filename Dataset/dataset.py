@@ -313,6 +313,10 @@ class CategoricalReflectionDataset:
         img_r = 2 * (tf.cast(tf.image.resize(img_r, [256, 256]), dtype=tf.float32) / 255) - 1
         img_m = 2 * (tf.cast(tf.image.resize(img_m, [256, 256]), dtype=tf.float32) / 255) - 1
 
+        img_t = tf.expand_dims(img_t, axis=0)
+        img_r = tf.expand_dims(img_r, axis=0)
+        img_m = tf.expand_dims(img_m, axis=0)
+
         return img_t, img_r, img_m, tf.one_hot([which_class], self.classes_num)
 
 
