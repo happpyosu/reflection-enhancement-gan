@@ -165,7 +165,7 @@ class ReflectionInfoG:
             fake_inp = tf.concat([t, r, gen_img], axis=3)
             _, pred_label, pred_code = self.D(fake_inp)
 
-            info_loss = 10 * self.cce(gt_label, pred_label, from_logits=True) + 1 * tf.reduce_mean((z1 - pred_code) ** 2)
+            info_loss = 2 * self.cce(gt_label, pred_label, from_logits=True) + 0.1 * tf.reduce_mean((z1 - pred_code) ** 2)
             g_grad = G_tape.gradient(info_loss, self.G.trainable_variables)
             d_grad = D_tape.gradient(info_loss, self.D.trainable_variables)
 
