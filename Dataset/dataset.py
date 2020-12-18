@@ -248,7 +248,7 @@ class CategoricalReflectionDataset:
         - n
     This class can produce
     """
-    def __init__(self, root='../dataset-root/train2', step_per_epoch=4000):
+    def __init__(self, root='../dataset-root/train_info', step_per_epoch=4000):
         # batch size
         self.batch_size = 1
 

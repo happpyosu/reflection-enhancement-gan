@@ -3,6 +3,7 @@ import tensorflow as tf
 from Dataset.dataset import CategoricalReflectionDataset
 import numpy as np
 from utils.imageUtils import ImageUtils
+from utils import gpuutils
 
 
 class ReflectionInfoG:
@@ -99,9 +100,11 @@ class ReflectionInfoG:
             for t, r, m, c in self.dataset:
                 self.train_one_step(t, r, m, c)
 
-            if self.inc % self.save_every:
+            if self.inc % self.save_every == 0:
                 self.save_weights()
 
+            if self.inc % self.output_every == 0:
+                self.output_middle_results()
 
     @tf.function
     def train_one_step(self, t, r, m, c):
@@ -169,10 +172,9 @@ class ReflectionInfoG:
 
 
 if __name__ == '__main__':
+    gpuutils.which_gpu_to_use(0)
     R = ReflectionInfoG()
-    print(R.gen_class(one_hot_z=tf.one_hot([2], depth=3))[:, :, :, 0])
-    print(R.gen_class(one_hot_z=tf.one_hot([2], depth=3))[:, :, :, 1])
-    print(R.gen_class(one_hot_z=tf.one_hot([2], depth=3))[:, :, :, 2])
+    R.start_train_task()
 
 
 
