@@ -169,8 +169,8 @@ class ReflectionInfoG:
             g_grad = G_tape.gradient(info_loss, self.G.trainable_variables)
             d_grad = D_tape.gradient(info_loss, self.D.trainable_variables)
 
-            self.optimizer_G.apply_gradients(g_grad, self.G.trainable_variables)
-            self.optimizer_D.apply_gradients(d_grad, self.D.trainable_variables)
+            self.optimizer_G.apply_gradients(zip(g_grad, self.G.trainable_variables))
+            self.optimizer_D.apply_gradients(zip(d_grad, self.D.trainable_variables))
 
 
 if __name__ == '__main__':
