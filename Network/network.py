@@ -415,9 +415,11 @@ class MisalignedRemovalNetworks:
         :param in_dims: input feature map dimensions. origin paper uses the VGG19 to extract high-level image features.
         :return: tf.keras.Model.
         """
-        n_res = 13
+        n_res = 5
 
         model = keras.Sequential()
+
+        model.add(layers.InputLayer(input_shape=(None, None, in_dims)))
 
         # conv1 256 -> 256
         model.add(MisalignedRemovalComponent.get_conv_block(in_dim=in_dims, f=64, k=3, s=1, d=1,
@@ -444,7 +446,7 @@ class MisalignedRemovalNetworks:
                                                                        out_channels=256, ct_channels=64))
 
         # deconv3 256 -> 256
-        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=256, k=3, s=1, d=1))
+        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=3, k=3, s=1, d=1))
 
         return model
 
@@ -651,5 +653,5 @@ class InfoGNetworks:
 
 
 if __name__ == '__main__':
-    D = InfoGNetworks.build_Discriminator()
-    D.summary()
+    G = MisalignedRemovalNetworks.build_DRNet(1475)
+    G.summary()

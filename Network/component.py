@@ -191,7 +191,7 @@ class MisalignedRemovalComponent:
         :param reduction: reduction rate on fc layer
         :return: tf.keras.Model Object
         """
-        inp = layers.Input(shape=(None, None, in_dim))
+        inp = layers.Input(shape=(sz, sz, in_dim))
 
         # pooling to one-dim per channel
         p1 = layers.AveragePooling2D(pool_size=(sz, sz))(inp)
@@ -318,7 +318,7 @@ class MisalignedRemovalComponent:
         conv2 = MisalignedRemovalComponent.get_conv_block(in_dim=f, f=f, k=3, s=1, d=d, norm=norm, non_linear='none')
 
         # in-dim = out-dim = f
-        inp = keras.Input(shape=(None, None, f))
+        inp = keras.Input(shape=(sz, sz, f))
 
         res = inp
         out = conv1(inp)

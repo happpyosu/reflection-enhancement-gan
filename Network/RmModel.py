@@ -364,12 +364,66 @@ class MisalignedRemovalModel:
         # vgg features 1472 + origin image 3 = 1475
         self.rm = MisalignedRemovalNetworks.build_DRNet(in_dims=1475)
 
+        # training dataset and test dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
         # d
         self.d = MisalignedRemovalNetworks.build_patch_gan_discriminator()
 
         # optimizer for g and d
         self.g_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
         self.d_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # config
+        self.EPOCH = 100
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+                if self.inc % self.save_every:
+                    self.save_weights()
+
+                if self.inc % self.output_every:
+                    self.output_middle_result()
+
+    def save_weights(self):
+        self.rm.save_weights('../save/' + 'misalignedRm_g0_' + str(self.inc) + '.h5')
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+            # extract hyper-col feature
+            features_list = self.feature_extractor(m)
+            features = m
+
+            for f in features_list:
+                resized = tf.image.resize(f, (self.img_size, self.img_size))
+                features = tf.concat([features, resized], axis=3)
+
+            # forward
+            pred_t = self.rm(features, training=True)
+            pred_t = tf.squeeze(pred_t, axis=0)
+
+            del features_list
+            img_list.append(pred_t)
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 1, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):
