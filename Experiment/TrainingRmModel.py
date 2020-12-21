@@ -23,7 +23,7 @@ class TrainingRmModel:
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)
-    rm = TrainingRmModel(1)
+    rm = TrainingRmModel(2)
     rm.train()
 
 
