@@ -7,7 +7,10 @@ This file offers some reflection removal model implements.
 (1) PerceptionRemovalModel: reflection removal with the perception loss
 (2) BidirectionalRemovalModel: reflection removal with the bidirectional translation
 (3) MisalignedRemovalModel: reflection removal with misaligned data and network enhancement(channel attention).
-(4) BeyondLinearityRemovalModel: Single Image Reflection Removal Beyond Linearity using a predicted alpha blending mask
+(4) EncoderDecoderRemovalModel: Single Image Reflection Removal Using Deep Encoder-Decoder Network
+
+and some jointly generative and removal models. 
+(5) BeyondLinearityRemovalModel: Single Image Reflection Removal Beyond Linearity using a predicted alpha blending mask
 to syn the training data.
 @author: chen hao
 @date: 2020-11-11
@@ -386,14 +389,14 @@ class MisalignedRemovalModel:
             self.inc += 1
             for t, r, m in self.train_dataset:
                 self.train_one_step(t, r, m)
-                if self.inc % self.save_every:
+                if self.inc % self.save_every == 0:
                     self.save_weights()
 
-                if self.inc % self.output_every:
+                if self.inc % self.output_every == 0:
                     self.output_middle_result()
 
     def save_weights(self):
-        self.rm.save_weights('../save/' + 'misalignedRm_g0_' + str(self.inc) + '.h5')
+        self.rm.save_weights('../save/' + 'misalignedRm_' + str(self.inc) + '.h5')
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
