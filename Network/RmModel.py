@@ -1,13 +1,17 @@
 import tensorflow as tf
-from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, MisalignedRemovalNetworks, BeyondLinearityNetworks
+from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, \
+    MisalignedRemovalNetworks, EncoderDecoderRemovalNetworks, BeyondLinearityNetworks
 from Dataset.dataset import DatasetFactory
-
+from utils.imageUtils import ImageUtils
 '''
 This file offers some reflection removal model implements.
 (1) PerceptionRemovalModel: reflection removal with the perception loss
 (2) BidirectionalRemovalModel: reflection removal with the bidirectional translation
 (3) MisalignedRemovalModel: reflection removal with misaligned data and network enhancement(channel attention).
-(4) BeyondLinearityRemovalModel: Single Image Reflection Removal Beyond Linearity using a predicted alpha blending mask
+(4) EncoderDecoderRemovalModel: Single Image Reflection Removal Using Deep Encoder-Decoder Network
+
+and some jointly generative and removal models. 
+(5) BeyondLinearityRemovalModel: Single Image Reflection Removal Beyond Linearity using a predicted alpha blending mask
 to syn the training data.
 @author: chen hao
 @date: 2020-11-11
@@ -25,6 +29,8 @@ class PerceptionRemovalModel:
     """
 
     def __init__(self):
+        # epoch
+        self.EPOCH = 100
 
         # epsilon for log function
         self.EPS = 1e-12
@@ -49,6 +55,61 @@ class PerceptionRemovalModel:
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
+        # config logging
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for (t, r, m) in self.train_dataset:
+                self.train_one_step(t, r, m)
+
+            if self.inc % self.output_every:
+                self.output_middle_result()
+
+            if self.inc & self.save_every:
+                self.save_weights()
+
+    def save_weights(self):
+        self.rm.save_weights('../save/' + 'percpRm_' + str(self.inc) + '.h5')
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+            # extract hyper-col feature
+            features_list = self.feature_extractor(m)
+            features = m
+
+            for f in features_list:
+                resized = tf.image.resize(f, (self.img_size, self.img_size))
+                features = tf.concat([features, resized], axis=3)
+
+            # forward
+            pred = self.rm(features, training=True)
+            pred_t, pred_r = tf.split(pred, num_or_size_splits=2, axis=3)
+            pred_t = tf.squeeze(pred_t, axis=0)
+            pred_r = tf.squeeze(pred_r, axis=0)
+
+            del features_list
+
+            img_list.append(pred_t)
+            img_list.append(pred_r)
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 2, img_lists, is_save=True, epoch_index=self.inc)
+
+    @tf.function
     def train_one_step(self, t, r, m):
         # obtain the hypercolumn features first.
         features_list = self.feature_extractor(m)
@@ -160,6 +221,9 @@ class BidirectionalRemovalModel:
     """
 
     def __init__(self):
+        # training EPOCH
+        self.EPOCH = 100
+
         # epsilon for log function
         self.EPS = 1e-12
 
@@ -185,6 +249,59 @@ class BidirectionalRemovalModel:
         # training dataset and test dataset
         self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
+        # config logging
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    def save_weights(self):
+        self.g0.save_weights('../save/' + 'bidirRm_g0_' + str(self.inc) + '.h5')
+        self.H.save_weights('../save/' + 'bidirRm_H_' + str(self.inc) + '.h5')
+        self.g1.save_weights('../save/' + 'bidirRm_g1_' + str(self.inc) + '.h5')
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+
+            if self.inc % self.save_every:
+                self.save_weights()
+
+            if self.inc % self.output_every:
+                self.output_middle_result()
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+
+            pred_B = self.g0(m)
+            IB = tf.concat([m, t], axis=3)
+            pred_R = self.H(IB)
+            IR = tf.concat([m, r], axis=3)
+            pred_B1 = self.g1(IR)
+
+            B0 = tf.squeeze(pred_B, axis=0)
+            R = tf.squeeze(pred_R, axis=0)
+            B1 = tf.squeeze(pred_B1, axis=0)
+
+            img_list.append(B0)
+            img_list.append(R)
+            img_list.append(B1)
+
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 3, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -251,12 +368,68 @@ class MisalignedRemovalModel:
         # vgg features 1472 + origin image 3 = 1475
         self.rm = MisalignedRemovalNetworks.build_DRNet(in_dims=1475)
 
+        # training dataset and test dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
         # d
         self.d = MisalignedRemovalNetworks.build_patch_gan_discriminator()
 
         # optimizer for g and d
         self.g_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
         self.d_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # config
+        self.EPOCH = 100
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+
+            if self.inc % self.save_every == 0:
+                    self.save_weights()
+
+            if self.inc % self.output_every == 0:
+                    self.output_middle_result()
+
+    def save_weights(self):
+        self.rm.save_weights('../save/' + 'misalignedRm_' + str(self.inc) + '.h5')
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+            # extract hyper-col feature
+            features_list = self.feature_extractor(m)
+            features = m
+
+            for f in features_list:
+                resized = tf.image.resize(f, (self.img_size, self.img_size))
+                features = tf.concat([features, resized], axis=3)
+
+            # forward
+            pred_t = self.rm(features, training=True)
+            pred_t = tf.squeeze(pred_t, axis=0)
+
+            del features_list
+            img_list.append(pred_t)
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 1, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -332,6 +505,68 @@ class MisalignedRemovalModel:
         grad_loss = tf.reduce_mean(tf.abs(grad_x_img1 - grad_x_img2)) + tf.reduce_mean(tf.abs(grad_y_img1 - grad_y_img2))
 
         return l1_loss + grad_loss
+
+
+class EncoderDecoderRemovalModel:
+    def __init__(self):
+        # the image size
+        self.img_size = 256
+
+        # the vgg19 feature extractor
+        self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
+
+        # training dataset and test dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
+        # optimizer
+        self.g_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # rm model
+        self.rm = EncoderDecoderRemovalNetworks.get_autoencoder(img_size=self.img_size)
+
+        # config
+        self.EPOCH = 100
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    @tf.function
+    def train_one_step(self, t, r, m):
+        with tf.GradientTape() as tape:
+            pred_t = self.rm(m)
+            loss = self.compute_l2_loss(pred_t, t) + self.compute_feature_loss(pred_t, t)
+            grad = tape.gradient(loss, self.rm.trainable_variables)
+            self.g_optimizer.apply_gradients(zip(grad, self.rm.trainable_variables))
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+                if self.inc % self.save_every == 0:
+                    self.save_weights()
+
+                if self.inc % self.output_every == 0:
+                    self.output_middle_result()
+
+    def compute_l2_loss(self, img1, img2):
+        return tf.reduce_mean((img1 - img2) ** 2)
+
+    def compute_feature_loss(self, img1, img2):
+        """
+        compute the feature using vgg19
+        :param img1: image1
+        :param img2: image2
+        :return: loss tensor
+        """
+        feat_list_img1 = self.feature_extractor(img1)
+        feat_list_img2 = self.feature_extractor(img2)
+        feature_loss = 0
+        for i in range(len(feat_list_img1)):
+            feature_loss += tf.reduce_mean(tf.abs(feat_list_img1[i] - feat_list_img2[i]))
+
+        return feature_loss
 
 
 class BeyondLinearityRemovalModel:

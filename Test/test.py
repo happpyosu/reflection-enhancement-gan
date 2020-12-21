@@ -1,13 +1,16 @@
 import tensorflow as tf
+import cv2
 import numpy as np
 from tensorflow.keras import layers
+import os
 
-x_in = np.random.random([1, 256, 256, 3])
 
-pl = layers.AveragePooling2D(pool_size=(256, 256))
+def gaussian_kernel(kernel_size=3, sigma=0):
+    kx = cv2.getGaussianKernel(kernel_size, sigma)
+    ky = cv2.getGaussianKernel(kernel_size, sigma)
+    return np.multiply(kx, np.transpose(ky))
 
-out = pl(x_in)
-print(out.shape)
+if __name__ == '__main__':
+    print(tf.one_hot([1], depth=3))
 
-y = x_in * out
-print(y)
+

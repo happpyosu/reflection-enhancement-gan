@@ -29,14 +29,14 @@ class ReflectionGAN:
 
     def __init__(self):
         # config
-        self.noise_dim = 8
+        self.noise_dim = 4
         self.img_size = 256
         self.epoch = 100
 
         # models
         self.D1 = Network.build_discriminator(img_size=self.img_size)
         self.D2 = Network.build_discriminator(img_size=self.img_size)
-        self.G = Network.build_generator(img_size=self.img_size, noise_dim=self.noise_dim)
+        self.G = Network.build_optical_synthesis_generator(img_size=self.img_size, noise_dim=self.noise_dim)
         self.E = Network.build_encoder(img_size=self.img_size, noise_dim=self.noise_dim)
 
         # dataset
@@ -58,7 +58,7 @@ class ReflectionGAN:
 
         # config logging
         self.inc = 0
-        self.save_every = 10
+        self.save_every = 2
         self.output_every = 2
 
     def _gen_noise(self):
@@ -113,6 +113,23 @@ class ReflectionGAN:
     def load_weights(self, epoch: int):
         self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
         # self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
+
+    def forward_G(self, t, r, z):
+        cat_z = tf.concat([t, r, z], axis=3)
+        fake_m = self.G(cat_z)
+        return fake_m
+
+    def forward_E(self, t, r, m):
+        cat_trm = tf.concat([t, r, m], axis=3)
+        mu, log_var = self.E(cat_trm)
+        std = tf.exp(log_var / 2)
+        z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
+        z = (z * std) + mu
+        z = tf.tile(z, [1, self.img_size, self.img_size, 1])
+        # cat_z = tf.concat([t, r, z], axis=3)
+        # fake_m = self.G(cat_z)
+
+        return z
 
     @tf.function
     def train_one_step(self, t, r, m):
@@ -216,12 +233,12 @@ class ReflectionGAN:
             GAN_loss_cLR_2 = tf.reduce_mean((fake_D2_2 - tf.ones_like(fake_D2_2)) ** 2)
 
             # gan loss for G
-            G_GAN_Loss = GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2
+            G_GAN_Loss = 0.1 * (GAN_loss_cVAE_1 + GAN_loss_cVAE_2 + GAN_loss_cLR_1 + GAN_loss_cLR_2)
 
             print('G_GAN_loss', str(G_GAN_Loss))
 
             # KL-divergence loss for G and E
-            KL_div = 0.01 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
+            KL_div = 0.005 * tf.reduce_sum(0.5 * (mu ** 2 + tf.exp(var) - var - 1))
 
             # step. 4. Reconstruct of ground truth image
             img_recon_loss = 10 * tf.reduce_mean(tf.abs(fake_m_VAE - m1))
@@ -254,8 +271,8 @@ class ReflectionGAN:
 
 
 if __name__ == '__main__':
-    # gpuutils.which_gpu_to_use(1)
+    gpuutils.which_gpu_to_use(0)
     gan = ReflectionGAN()
-    # gan.load_weights(100)
-    # gan.output_middle_result(4, 5)
+    #gan.load_weights(40)
+    #gan.output_middle_result(10, 12)
     gan.start_train_task()

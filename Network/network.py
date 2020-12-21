@@ -2,7 +2,8 @@ from Network.component import Component
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
-from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, MisalignedRemovalComponent, BeyondLinearityComponent
+from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, \
+    MisalignedRemovalComponent, BeyondLinearityComponent, InfoGComponent, EncoderDecoderRemovalComponent
 
 
 class Network:
@@ -11,6 +12,132 @@ class Network:
         @Author: chen hao
         @Date:   2020.11.05
     """
+
+    @staticmethod
+    def build_modal_encoder(img_size=256, code_dim=32):
+        """
+        reflection modal encoder, which encodes [r, rb] -> low-dim latent code
+        :param img_size: the image size
+        :return: tf.Model
+        """
+        input_layer = keras.layers.Input(shape=(img_size, img_size, 3 + 3))
+        # 256
+        ds1 = Component.get_conv_block(3 + 3, 32, norm=False)(input_layer)
+        # 128
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        # 64
+        ds3 = Component.get_conv_block(64, 128)(ds2)
+        # 32
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        # 16 * 16  * 4
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        # 8 * 8 * 4
+        ds6 = Component.get_conv_block(256, 4)(ds5)
+
+        flat = layers.Flatten()(ds6)
+
+        out = layers.Dense(code_dim)(flat)
+
+        return keras.Model(input_layer, out)
+
+    @staticmethod
+    def build_modal_decoder(img_size=256):
+        """
+        reflection modal decoder, which accepts [code_dim, ]
+        :param img_size:
+        :return:
+        """
+        pass
+
+    @staticmethod
+    def build_simple_G(img_size=256, noise_dim=1):
+        """
+        build a simple generator for the regan.
+        :param img_size:
+        :return:
+        """
+        input_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3 + noise_dim))
+
+        inp, noise = tf.split(input_layer, [3, noise_dim], axis=3)
+
+        # 256 -> 128
+        ds1 = Component.get_conv_block(noise_dim, 128)(noise)
+        # 128 -> 64
+        ds2 = Component.get_conv_block(128, 256)(ds1)
+        # 64 -> (32, 32, 128) (32, 32, 3, 3)
+        ds3 = Component.get_conv_block(256, 64)(ds2)
+
+        ds4 = Component.get_conv_block(64, 1)(ds3)
+
+        fl = layers.Flatten()(ds4)
+
+        ker = layers.Dense(32 * 32 * 3 * 3, activation='relu')(fl)
+
+        # mask: 256, 256
+        mask = Component.get_deconv_block(128, 3)(ds1)
+        kernel = tf.reshape(ker, [32, 32, 3, 3])
+
+        blurred_R = tf.nn.conv2d(inp, kernel, strides=[1, 1, 1, 1], padding='SAME')
+        blurred_R = layers.multiply([blurred_R, mask])
+
+        return keras.Model(input_layer, blurred_R)
+
+    @staticmethod
+    def build_multimodal_D(img_size=256):
+        """
+        build the discriminator model for multi-modal gan.
+        :param img_size: image size for synthetic image S and noise
+        :return: two tf.keras.Model objects.
+        """
+        input_layer = tf.keras.layers.Input(shape=(img_size, img_size, 6))
+
+        d1 = tf.keras.Sequential([tf.keras.layers.AveragePooling2D(pool_size=(3, 3), strides=2),
+                                  Component.get_conv_block(6, 32, norm=False),
+                                  Component.get_conv_block(32, 64),
+                                  Component.get_conv_block(64, 128),
+                                  Component.get_conv_block(128, 256, s=1),
+                                  Component.get_conv_block(256, 1, s=1, norm=False, non_linear='none')
+                                  ])
+
+        d2 = tf.keras.Sequential([Component.get_conv_block(6, 64, norm=False),
+                                  Component.get_conv_block(64, 128),
+                                  Component.get_conv_block(128, 256),
+                                  Component.get_conv_block(256, 1, norm=False, non_linear='none')])
+
+        out1 = d1(input_layer)
+        out2 = d2(input_layer)
+
+        return tf.keras.Model(input_layer, (out1, out2))
+
+    @staticmethod
+    def build_multimodal_G(img_size=256, noise_dim=4):
+        """
+        build the generator model
+        :param img_size: image size for reflection image R, transmission layer T
+        :param noise_dim: noise_dim to concat with the input image (T, R)
+        :return: tf.keras.Model object. The generator model accept a 4-D tensor with the shape
+        (Batch_size, img_size, img_size, 3 + 3 + noise_dim)
+        noted that channel 3 + 3 means the RGB channels for image T and R
+        channel noise_dim means the noise channel
+        """
+
+        in_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3 + noise_dim))
+
+        ds1 = Component.get_conv_block(3 + noise_dim, 32, norm=False)(in_layer)
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        ds3 = Component.get_conv_block(64, 128)(ds2)
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        ds6 = Component.get_conv_block(256, 256)(ds5)
+
+        us1 = Component.get_deconv_block(256, 256)(ds6)
+        us2 = Component.get_deconv_block(512, 256)(tf.concat([us1, ds5], axis=3))
+        us3 = Component.get_deconv_block(512, 128)(tf.concat([us2, ds4], axis=3))
+        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))
+        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))
+        out_layer = Component.get_deconv_block(64, 3, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
+
+        return tf.keras.Model(in_layer, out_layer)
 
     @staticmethod
     def build_optical_synthesis_generator(img_size=256, noise_dim=4):
@@ -198,7 +325,7 @@ class PerceptionRemovalNetworks:
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 32))
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 64))
         model.add(PerceptionRemovalModelComponent.get_conv_BN_block(3, 1))
-        model.add(layers.Conv2D(filters=64, kernel_size=(1, 1), padding='same'))
+        model.add(layers.Conv2D(filters=6, kernel_size=(1, 1), padding='same'))
 
         return model
 
@@ -288,9 +415,11 @@ class MisalignedRemovalNetworks:
         :param in_dims: input feature map dimensions. origin paper uses the VGG19 to extract high-level image features.
         :return: tf.keras.Model.
         """
-        n_res = 13
+        n_res = 5
 
         model = keras.Sequential()
+
+        model.add(layers.InputLayer(input_shape=(None, None, in_dims)))
 
         # conv1 256 -> 256
         model.add(MisalignedRemovalComponent.get_conv_block(in_dim=in_dims, f=64, k=3, s=1, d=1,
@@ -317,7 +446,7 @@ class MisalignedRemovalNetworks:
                                                                        out_channels=256, ct_channels=64))
 
         # deconv3 256 -> 256
-        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=256, k=3, s=1, d=1))
+        model.add(MisalignedRemovalComponent.get_deconv_block(in_dim=256, f=3, k=3, s=1, d=1))
 
         return model
 
@@ -431,7 +560,8 @@ class BeyondLinearityNetworks:
             deconv5 = BeyondLinearityComponent.get_deconv_block(32, 16)(tf.concat([deconv4, conv2], axis=3))
 
             # 128 -> 256
-            out = BeyondLinearityComponent.get_deconv_block(16, 3, non_linear=non_linear)(tf.concat([deconv5, conv1], axis=3))
+            out = BeyondLinearityComponent.get_deconv_block(16, 3, non_linear=non_linear)(
+                tf.concat([deconv5, conv1], axis=3))
 
             return out
 
@@ -473,7 +603,71 @@ class Vgg19FeatureExtractor:
         return keras.Model(vgg19.input, features_list)
 
 
+class InfoGNetworks:
+    @staticmethod
+    def build_Generator(img_size=256, input_dim=8):
+        model = keras.Sequential()
+
+        model.add(layers.InputLayer(input_shape=(img_size, img_size, input_dim)))
+
+        # hidden conv layers
+        model.add(InfoGComponent.get_conv_block(f=128))
+        model.add(InfoGComponent.get_conv_block(f=128))
+        model.add(InfoGComponent.get_conv_block(f=256))
+        model.add(InfoGComponent.get_conv_block(f=64))
+
+        # output layer
+        model.add(layers.Conv2D(filters=3, kernel_size=3, padding='same', activation='tanh'))
+
+        return model
+
+    @staticmethod
+    def build_Discriminator(img_size=256, n_class=2, code_dim=4):
+        def build_conv():
+            model = keras.Sequential()
+
+            # fully-conv layers
+            model.add(InfoGComponent.get_discriminator_block(16, bn=False))
+            model.add(InfoGComponent.get_discriminator_block(32))
+            model.add(InfoGComponent.get_discriminator_block(64))
+            model.add(InfoGComponent.get_discriminator_block(128))
+
+            return model
+
+        inp = keras.Input(shape=(img_size, img_size, 9))
+        conv = build_conv()(inp)
+
+        # flatten to one-dim
+        fl = layers.Flatten()(conv)
+
+        # score of 0~1
+        adv_out = layers.Dense(1, activation='sigmoid')(fl)
+
+        # classify to n classes
+        aux_out = layers.Dense(n_class)(fl)
+
+        # latent code regression
+        latent_out = layers.Dense(code_dim)(fl)
+
+        return keras.Model(inp, [adv_out, aux_out, latent_out])
+
+
+class EncoderDecoderRemovalNetworks:
+    @staticmethod
+    def get_autoencoder(img_size=256):
+        inp = keras.Input(shape=(img_size, img_size, 3))
+
+        b1 = EncoderDecoderRemovalComponent.get_feature_extraction_block()
+        b2 = EncoderDecoderRemovalComponent.get_reflection_recovery_and_removal_block()
+        b3 = EncoderDecoderRemovalComponent.get_transmission_layer_restoration_block()
+
+        out1 = b1(inp)
+        out2 = b2(out1)
+        out3 = b3(out2)
+
+        return keras.Model(inp, out3)
+
 
 if __name__ == '__main__':
-    extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
-    extractor.summary()
+    G = EncoderDecoderRemovalNetworks.get_autoencoder()
+    G.summary()
