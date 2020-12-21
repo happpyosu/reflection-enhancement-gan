@@ -1,5 +1,6 @@
 import tensorflow as tf
-from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, MisalignedRemovalNetworks, BeyondLinearityNetworks
+from Network.network import Network, PerceptionRemovalNetworks, BidirectionalRemovalNetworks, Vgg19FeatureExtractor, \
+    MisalignedRemovalNetworks, EncoderDecoderRemovalNetworks, BeyondLinearityNetworks
 from Dataset.dataset import DatasetFactory
 from utils.imageUtils import ImageUtils
 '''
@@ -387,12 +388,14 @@ class MisalignedRemovalModel:
     def start_train_task(self):
         for _ in range(self.EPOCH):
             self.inc += 1
+
             for t, r, m in self.train_dataset:
                 self.train_one_step(t, r, m)
-                if self.inc % self.save_every == 0:
+
+            if self.inc % self.save_every == 0:
                     self.save_weights()
 
-                if self.inc % self.output_every == 0:
+            if self.inc % self.output_every == 0:
                     self.output_middle_result()
 
     def save_weights(self):
@@ -502,6 +505,68 @@ class MisalignedRemovalModel:
         grad_loss = tf.reduce_mean(tf.abs(grad_x_img1 - grad_x_img2)) + tf.reduce_mean(tf.abs(grad_y_img1 - grad_y_img2))
 
         return l1_loss + grad_loss
+
+
+class EncoderDecoderRemovalModel:
+    def __init__(self):
+        # the image size
+        self.img_size = 256
+
+        # the vgg19 feature extractor
+        self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
+
+        # training dataset and test dataset
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
+
+        # optimizer
+        self.g_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
+
+        # rm model
+        self.rm = EncoderDecoderRemovalNetworks.get_autoencoder(img_size=self.img_size)
+
+        # config
+        self.EPOCH = 100
+        self.inc = 0
+        self.save_every = 10
+        self.output_every = 2
+
+    @tf.function
+    def train_one_step(self, t, r, m):
+        with tf.GradientTape() as tape:
+            pred_t = self.rm(m)
+            loss = self.compute_l2_loss(pred_t, t) + self.compute_feature_loss(pred_t, t)
+            grad = tape.gradient(loss, self.rm.trainable_variables)
+            self.g_optimizer.apply_gradients(zip(grad, self.rm.trainable_variables))
+
+    def start_train_task(self):
+        for _ in range(self.EPOCH):
+            self.inc += 1
+            for t, r, m in self.train_dataset:
+                self.train_one_step(t, r, m)
+                if self.inc % self.save_every == 0:
+                    self.save_weights()
+
+                if self.inc % self.output_every == 0:
+                    self.output_middle_result()
+
+    def compute_l2_loss(self, img1, img2):
+        return tf.reduce_mean((img1 - img2) ** 2)
+
+    def compute_feature_loss(self, img1, img2):
+        """
+        compute the feature using vgg19
+        :param img1: image1
+        :param img2: image2
+        :return: loss tensor
+        """
+        feat_list_img1 = self.feature_extractor(img1)
+        feat_list_img2 = self.feature_extractor(img2)
+        feature_loss = 0
+        for i in range(len(feat_list_img1)):
+            feature_loss += tf.reduce_mean(tf.abs(feat_list_img1[i] - feat_list_img2[i]))
+
+        return feature_loss
 
 
 class BeyondLinearityRemovalModel:

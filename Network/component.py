@@ -437,6 +437,7 @@ class EncoderDecoderRemovalComponent:
             return model
 
         model = keras.Sequential()
+        model.add(layers.InputLayer(input_shape=(None, None, 3)))
         f = 16
         for _ in range(5):
             model.add(get_conv_block(f=f))
@@ -489,6 +490,24 @@ class EncoderDecoderRemovalComponent:
 
         return keras.Model(inp, r)
 
+    @staticmethod
+    def get_transmission_layer_restoration_block():
+        def get_conv_block(f=64, k=3, s=1):
+            model = keras.Sequential()
+            model.add(layers.Conv2D(filters=f, strides=s, kernel_size=k, padding='same'))
+            model.add(layers.BatchNormalization())
+            model.add(layers.LeakyReLU())
+            return model
+
+        model = keras.Sequential()
+        model.add(layers.InputLayer(input_shape=(None,None, 3)))
+        f = 16
+        for _ in range(5):
+            model.add(get_conv_block(f=f))
+            f *= 2
+
+        model.add(get_conv_block(f=3))
+        return model
 
 if __name__ == '__main__':
     test = EncoderDecoderRemovalComponent()

@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow import keras
 from Network.component import PerceptionRemovalModelComponent, BidirectionalRemovalComponent, \
-    MisalignedRemovalComponent, BeyondLinearityComponent, InfoGComponent
+    MisalignedRemovalComponent, BeyondLinearityComponent, InfoGComponent, EncoderDecoderRemovalComponent
 
 
 class Network:
@@ -652,6 +652,22 @@ class InfoGNetworks:
         return keras.Model(inp, [adv_out, aux_out, latent_out])
 
 
+class EncoderDecoderRemovalNetworks:
+    @staticmethod
+    def get_autoencoder(img_size=256):
+        inp = keras.Input(shape=(img_size, img_size, 3))
+
+        b1 = EncoderDecoderRemovalComponent.get_feature_extraction_block()
+        b2 = EncoderDecoderRemovalComponent.get_reflection_recovery_and_removal_block()
+        b3 = EncoderDecoderRemovalComponent.get_transmission_layer_restoration_block()
+
+        out1 = b1(inp)
+        out2 = b2(out1)
+        out3 = b3(out2)
+
+        return keras.Model(inp, out3)
+
+
 if __name__ == '__main__':
-    G = MisalignedRemovalNetworks.build_DRNet(1475)
+    G = EncoderDecoderRemovalNetworks.get_autoencoder()
     G.summary()
