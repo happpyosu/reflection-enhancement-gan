@@ -2,18 +2,17 @@ import tensorflow as tf
 import sys
 
 sys.path.append('../')
-from Network.network import Network
 from Dataset.dataset import DatasetFactory
 from Network import RmModel
 from utils.metricUtils import MetricUtils
 
 
 class EvaluatingRmModel:
-    def __init__(self, model):
+    def __init__(self):
 
         # evaluation dataset of real data and syn dataset
         self.eval_real_dataset = DatasetFactory.get_dataset_by_name(name='RealEvalDataset')
-        self.eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
+        # self.eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
 
     def evalRmModel(self, weight_epoch: int, which_model=0, dataset_type='real'):
         if which_model == 0:
@@ -29,14 +28,14 @@ class EvaluatingRmModel:
 
         rm.load_weights(epoch=weight_epoch)
 
-        if dataset_type == 'syn':
-            for t, r, rb, m in self.eval_syn_dataset:
+        if dataset_type == 'real':
+            for t, r, rb, m in self.eval_real_dataset:
                 pred_t = rm.forward(m)
                 self.psnr(pred_t, t)
-        elif dataset_type == 'real':
-            for t, r, m in self.eval_syn_dataset:
-                pred_t = rm.forward(m)
-                self.psnr(pred_t, t)
+        # elif dataset_type == 'syn':
+        #     for t, r, m in self.eval_syn_dataset:
+        #         pred_t = rm.forward(m)
+        #         self.psnr(pred_t, t)
 
     def psnr(self, pred, gt):
         psnr = MetricUtils.compute_psnr(pred, gt)
@@ -75,3 +74,8 @@ class MetricProcessorHolder:
     def run(self):
         for p in self.processor_list:
             p.eval()
+
+
+if __name__ == '__main__':
+    E = EvaluatingRmModel()
+    E.evalRmModel(which_model=2, weight_epoch=30, dataset_type='real')
