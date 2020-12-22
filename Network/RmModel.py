@@ -264,7 +264,7 @@ class BidirectionalRemovalModel:
         self.H_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=10)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=6)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # config logging
@@ -433,7 +433,7 @@ class MisalignedRemovalModel:
         self.rm.save_weights('../save/' + 'misalignedRm_' + str(self.inc) + '.h5')
 
     def load_weights(self, epoch: int):
-        self.rm.load_weights('../save/' + 'misalignedRm_' + str(epoch   ) + '.h5')
+        self.rm.load_weights('../save/' + 'misalignedRm_' + str(epoch) + '.h5')
 
     def forward(self, m):
         # extract hyper-col feature
@@ -578,6 +578,14 @@ class EncoderDecoderRemovalModel:
 
     def save_weights(self):
         self.rm.save_weights('../save/' + 'encoderDecoderRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'encoderDecoderRm_' + str(epoch) + '.h5')
+
+    def forward(self, m):
+        # forward
+        pred_t = self.rm(m)
+        return pred_t
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
