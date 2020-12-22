@@ -264,7 +264,7 @@ class BidirectionalRemovalModel:
         self.H_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=6)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # config logging

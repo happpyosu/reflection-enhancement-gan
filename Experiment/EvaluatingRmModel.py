@@ -15,9 +15,20 @@ class EvaluatingRmModel:
         self.eval_real_dataset = DatasetFactory.get_dataset_by_name(name='RealEvalDataset')
         self.eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
 
-    def eval_PerceptionRemovalModel(self, weight_epoch: int, dataset_type='syn'):
-        rm = RmModel.PerceptionRemovalModel()
+    def evalRmModel(self, weight_epoch: int, which_model=0, dataset_type='real'):
+        if which_model == 0:
+            rm = RmModel.PerceptionRemovalModel()
+        elif which_model == 1:
+            rm = RmModel.BidirectionalRemovalModel()
+        elif which_model == 2:
+            rm = RmModel.MisalignedRemovalModel()
+        elif which_model == 3:
+            rm = RmModel.EncoderDecoderRemovalModel()
+        else:
+            raise NotImplementedError("EvaluatingRmModel: No Such Rm model!")
+
         rm.load_weights(epoch=weight_epoch)
+
         if dataset_type == 'syn':
             for t, r, rb, m in self.eval_syn_dataset:
                 pred_t = rm.forward(m)
