@@ -32,6 +32,7 @@ class EvaluatingRmModel:
             for t, r, m in self.eval_real_dataset:
                 pred_t = rm.forward(m)
                 self.psnr(pred_t, t)
+                self.ssim(pred_t, t)
         # elif dataset_type == 'syn':
         #     for t, r, m in self.eval_syn_dataset:
         #         pred_t = rm.forward(m)
