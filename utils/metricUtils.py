@@ -29,8 +29,12 @@ class MetricUtils:
 
     @staticmethod
     def compute_ssim(img1, img2):
+
         img1 = 255 * ((img1.numpy() + 1) / 2)
         img2 = 255 * ((img2.numpy() + 1) / 2)
+
+        img1 = np.squeeze(img1, axis=0)
+        img2 = np.squeeze(img2, axis=0)
 
         # Variables for Gaussian kernel definition
         gaussian_kernel_sigma = 1.5
