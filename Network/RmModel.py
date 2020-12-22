@@ -264,7 +264,7 @@ class BidirectionalRemovalModel:
         self.H_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=20)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # config logging
@@ -276,6 +276,20 @@ class BidirectionalRemovalModel:
         self.g0.save_weights('../save/' + 'bidirRm_g0_' + str(self.inc) + '.h5')
         self.H.save_weights('../save/' + 'bidirRm_H_' + str(self.inc) + '.h5')
         self.g1.save_weights('../save/' + 'bidirRm_g1_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.g0.load_weights('../save/' + 'bidirRm_g0_' + str(epoch) + '.h5')
+        self.H.load_weights('../save/' + 'bidirRm_H_' + str(epoch) + '.h5')
+        self.g1.load_weights('../save/' + 'bidirRm_g1_' + str(epoch) + '.h5')
+
+    def forward(self, m):
+        pred_B = self.g0(m)
+        IB = tf.concat([m, pred_B], axis=3)
+        pred_R = self.H(IB)
+        IR = tf.concat([m, pred_R], axis=3)
+        pred_B1 = self.g1(IR)
+
+        return pred_B1
 
     def start_train_task(self):
         for _ in range(self.EPOCH):
@@ -303,9 +317,9 @@ class BidirectionalRemovalModel:
             img_list.append(m1)
 
             pred_B = self.g0(m)
-            IB = tf.concat([m, t], axis=3)
+            IB = tf.concat([m, pred_B], axis=3)
             pred_R = self.H(IB)
-            IR = tf.concat([m, r], axis=3)
+            IR = tf.concat([m, pred_R], axis=3)
             pred_B1 = self.g1(IR)
 
             B0 = tf.squeeze(pred_B, axis=0)
@@ -329,11 +343,11 @@ class BidirectionalRemovalModel:
             pred_B = self.g0(m, training=True)
 
             # concat I with B, pass IB to H
-            IB = tf.concat([m, t], axis=3)
+            IB = tf.concat([m, pred_B], axis=3)
             pred_R = self.H(IB, training=True)
 
             # concat I with R, pass IR to g1
-            IR = tf.concat([m, r], axis=3)
+            IR = tf.concat([m, pred_R], axis=3)
             pred_B1 = self.g1(IR, training=True)
 
             # l2 loss for g0
