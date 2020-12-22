@@ -264,7 +264,7 @@ class BidirectionalRemovalModel:
         self.H_optimizer = keras.optimizers.Adam(learning_rate=0.0002)
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=20)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=10)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # config logging
@@ -431,6 +431,20 @@ class MisalignedRemovalModel:
 
     def save_weights(self):
         self.rm.save_weights('../save/' + 'misalignedRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'misalignedRm_' + str(epoch   ) + '.h5')
+
+    def forward(self, m):
+        # extract hyper-col feature
+        features_list = self.feature_extractor(m)
+        features = m
+        for f in features_list:
+            resized = tf.image.resize(f, (self.img_size, self.img_size))
+            features = tf.concat([features, resized], axis=3)
+        # forward
+        pred_t = self.rm(features, training=True)
+        return pred_t
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
