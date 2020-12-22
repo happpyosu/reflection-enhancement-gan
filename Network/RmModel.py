@@ -72,8 +72,25 @@ class PerceptionRemovalModel:
             if self.inc & self.save_every:
                 self.save_weights()
 
+    def forward(self, m):
+        # extract hyper-col feature
+        features_list = self.feature_extractor(m)
+        features = m
+
+        for f in features_list:
+            resized = tf.image.resize(f, (self.img_size, self.img_size))
+            features = tf.concat([features, resized], axis=3)
+
+        # forward
+        pred = self.rm(features, training=True)
+        pred_t, pred_r = tf.split(pred, num_or_size_splits=2, axis=3)
+        return pred_t
+
     def save_weights(self):
         self.rm.save_weights('../save/' + 'percpRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'percpRm_' + str(epoch) + '.h5')
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
@@ -530,6 +547,30 @@ class EncoderDecoderRemovalModel:
         self.inc = 0
         self.save_every = 10
         self.output_every = 2
+
+    def save_weights(self):
+        self.rm.save_weights('../save/' + 'encoderDecoderRm_' + str(self.inc) + '.h5')
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+
+            # forward
+            pred_t = self.rm(m)
+            pred_t = tf.squeeze(pred_t, axis=0)
+            img_list.append(pred_t)
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 1, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):

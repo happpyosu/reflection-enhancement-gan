@@ -16,6 +16,8 @@ class TrainingRmModel:
             self.model = Rm.BidirectionalRemovalModel()
         elif which_model == 2:
             self.model = Rm.MisalignedRemovalModel()
+        elif which_model == 3:
+            self.model = Rm.EncoderDecoderRemovalModel()
 
     def train(self):
         self.model.start_train_task()

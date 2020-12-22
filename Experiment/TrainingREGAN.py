@@ -1,6 +1,5 @@
 import tensorflow as tf
 import sys
-
 sys.path.append('../')
 from Network.network import Network
 from Dataset.dataset import DatasetFactory
