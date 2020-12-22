@@ -5,7 +5,7 @@ sys.path.append('../')
 from Dataset.dataset import DatasetFactory
 from Network import RmModel
 from utils.metricUtils import MetricUtils
-
+from utils import gpuutils
 
 class EvaluatingRmModel:
     def __init__(self):
@@ -77,5 +77,6 @@ class MetricProcessorHolder:
 
 
 if __name__ == '__main__':
+    gpuutils.which_gpu_to_use(1)
     E = EvaluatingRmModel()
     E.evalRmModel(which_model=2, weight_epoch=30, dataset_type='real')
