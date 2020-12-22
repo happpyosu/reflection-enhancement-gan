@@ -29,7 +29,7 @@ class EvaluatingRmModel:
         rm.load_weights(epoch=weight_epoch)
 
         if dataset_type == 'real':
-            for t, r, rb, m in self.eval_real_dataset:
+            for t, r, m in self.eval_real_dataset:
                 pred_t = rm.forward(m)
                 self.psnr(pred_t, t)
         # elif dataset_type == 'syn':
