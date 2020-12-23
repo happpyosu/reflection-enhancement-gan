@@ -140,6 +140,41 @@ class Network:
         return tf.keras.Model(in_layer, out_layer)
 
     @staticmethod
+    def build_optical_reflection_remover(img_size=256, noise_dim=4):
+        """
+        build the rm model that used for co-training with the generator. The rm model accepts the single
+        reflection image and outputs t(transmission layer) and r (reflection layer) and latent code z
+        :param img_size: input image size, default to 256.
+        :param noise_dim: noise vector dimension.
+        :return: tf.keras.Model
+        """
+        in_layer = tf.keras.layers.Input(shape=(img_size, img_size, 3))
+
+        ds1 = Component.get_conv_block(3, 32, norm=False)(in_layer)
+        ds2 = Component.get_conv_block(32, 64)(ds1)
+        ds3 = Component.get_conv_block(64, 128)(ds2)
+        ds4 = Component.get_conv_block(128, 256)(ds3)
+        ds5 = Component.get_conv_block(256, 256)(ds4)
+        ds6 = Component.get_conv_block(256, 256)(ds5)
+
+        fl = layers.Flatten()(ds6)
+        mu = layers.Dense(noise_dim)(fl)
+        log_var = layers.Dense(noise_dim)(fl)
+
+        us1 = Component.get_deconv_block(256, 256)(ds6)
+        us2 = Component.get_deconv_block(512, 256)(tf.concat([us1, ds5], axis=3))
+        us3 = Component.get_deconv_block(512, 128)(tf.concat([us2, ds4], axis=3))
+        us4 = Component.get_deconv_block(256, 64)(tf.concat([us3, ds3], axis=3))
+        us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))
+
+        t_layer = Component.get_deconv_block(64, 3, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
+        r_layer = Component.get_deconv_block(64, 4, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
+
+        return tf.keras.Model(in_layer, [t_layer, r_layer, mu, log_var])
+
+
+
+    @staticmethod
     def build_optical_synthesis_generator(img_size=256, noise_dim=4):
         """
         build the generator model that use the conventional reflection synthetic model.
@@ -669,5 +704,5 @@ class EncoderDecoderRemovalNetworks:
 
 
 if __name__ == '__main__':
-    G = EncoderDecoderRemovalNetworks.get_autoencoder()
+    G = Network.build_optical_reflection_remover()
     G.summary()

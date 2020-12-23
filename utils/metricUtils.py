@@ -1,8 +1,5 @@
 import numpy as np
 import math
-import scipy.ndimage
-from numpy.ma.core import exp
-from scipy.constants.constants import pi
 import cv2
 from skimage.measure import structural_similarity as ssim
 
