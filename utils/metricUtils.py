@@ -2,7 +2,7 @@ import numpy as np
 import math
 import cv2
 from scipy.signal import convolve2d
-
+import tensorflow as tf
 
 class MetricUtils:
     """
@@ -45,6 +45,8 @@ class MetricUtils:
         def filter2(x, kernel, mode='same'):
             return convolve2d(x, np.rot90(kernel, 2), mode=mode)
 
+        im1 = tf.squeeze(im1, axis=0)
+        im2 = tf.squeeze(im2, axis=0)
 
         im1 = 255 * ((im1.numpy() + 1) / 2)
         im2 = 255 * ((im2.numpy() + 1) / 2)
