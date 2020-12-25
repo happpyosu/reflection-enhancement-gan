@@ -7,6 +7,7 @@ from Network import RmModel
 from utils.metricUtils import MetricUtils
 from utils import gpuutils
 
+
 class EvaluatingRmModel:
     def __init__(self):
 
@@ -84,4 +85,4 @@ class MetricProcessorHolder:
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(1)
     E = EvaluatingRmModel()
-    E.evalRmModel(which_model=2, weight_epoch=30, dataset_type='real')
+    E.evalRmModel(which_model=1, weight_epoch=100, dataset_type='real')

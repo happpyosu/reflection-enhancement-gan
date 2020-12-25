@@ -115,6 +115,7 @@ class ReflectionGAN:
         for _ in range(self.epoch):
             self.inc += 1
             print('[info]: current epoch: ' + str(self.inc))
+
             for (t, r, m) in self.train_dataset:
                 self.train_one_step(t, r, m)
 
@@ -123,6 +124,7 @@ class ReflectionGAN:
 
             if self.inc % self.output_every == 0:
                 self.output_middle_result()
+
         # save the final weight
         self.save_weights()
 
@@ -172,7 +174,7 @@ class ReflectionGAN:
         cat_tr_LR = tf.concat([t2, r2], axis=3)
         cat_trm_VAE = tf.concat([cat_tr_VAE, m1], axis=3)
 
-        # training D
+        # training D1 D2
         with tf.GradientTape() as d1_tape, \
                 tf.GradientTape() as d2_tape:
 
@@ -349,6 +351,4 @@ class ReflectionGAN:
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)
     gan = ReflectionGAN()
-    #gan.load_weights(40)
-    #gan.output_middle_result(10, 12)
     gan.start_train_task()

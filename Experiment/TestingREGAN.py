@@ -5,6 +5,7 @@ import tensorflow as tf
 import shutil
 import os
 
+
 class ReflectionGANTest:
     def __init__(self, which_epoch):
         # init the reflection GAN

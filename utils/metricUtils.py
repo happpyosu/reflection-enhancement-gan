@@ -3,10 +3,14 @@ import math
 import cv2
 from scipy.signal import convolve2d
 import tensorflow as tf
+from tensorflow.keras.applications import InceptionV3
+import os
+from tensorflow import keras
+
 
 class MetricUtils:
     """
-    This class offers common utils for computing the image metrics.
+    This class provides common utils for computing the image metrics.
     """
 
     @staticmethod
@@ -82,3 +86,40 @@ class MetricUtils:
         ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigmal2 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
         return np.mean(np.mean(ssim_map))
+
+
+class InceptionScoreCalculator:
+    def __init__(self):
+        self.model = self.build_model()
+
+        # load fine-tuned weights
+        self.load_fine_tuned_weights()
+
+        # cce loss
+        self.cce = keras.losses.categorical_crossentropy
+
+        # fine-tune config
+        self.save_every = 10
+        self.inc = 0
+
+    def train_one_step(self):
+        with tf.GradientTape() as tape:
+            pass
+
+    def build_model(self):
+        model = keras.Sequential()
+        model.add(InceptionV3(include_top=False, weights='imagenet', input_tensor=None, input_shape=(256, 256, 3)))
+        model.add(keras.layers.Flatten())
+        model.add(keras.layers.Dense(2))
+        return model
+
+    def save_weight(self):
+        self.model.save_weights('../assets/inception_finetuned_' + str(self.inc) + '.h5')
+
+    def load_fine_tuned_weights(self):
+        if os.path.exists('../assets/inception_finetuned.h5'):
+            self.model.load_weights('../assets/inception_finetuned.h5')
+
+
+if __name__ == '__main__':
+    I = InceptionScoreCalculator().model.summary()
