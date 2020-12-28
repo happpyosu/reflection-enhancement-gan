@@ -42,11 +42,13 @@ class EvaluatingRmModel:
             for t, r, m in self.eval_real_dataset:
                 inc += 1
                 pred_t = rm.forward(m)
+                avg_psnr += self.psnr(pred_t, t)
+                avg_ssim += self.ssim(pred_t, t)
+
                 pred_t = 255 * ((pred_t + 1) / 2)
                 pred_t = tf.cast(pred_t, tf.uint8)
                 ImageUtils.save_image_tensor(pred_t, name, inc)
-                avg_psnr += self.psnr(pred_t, t)
-                avg_ssim += self.ssim(pred_t, t)
+
         print('[AVG PSNR]: AVG PSNR: + ' + str(avg_psnr))
         print('[AVG SSIM]: AVG SSIM: + ' + str(avg_ssim))
         # elif dataset_type == 'syn':
