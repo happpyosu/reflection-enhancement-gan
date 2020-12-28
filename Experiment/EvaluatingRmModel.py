@@ -58,9 +58,9 @@ class EvaluatingRmModel:
             worksheet.write(inc, 0, str(p))
             worksheet.write(inc, 1, str(s))
 
-            pred_t = 255 * ((pred_t + 1) / 2)
-            pred_t = tf.cast(pred_t, tf.uint8)
-            ImageUtils.save_image_tensor(pred_t, name, inc)
+            # pred_t = 255 * ((pred_t + 1) / 2)
+            # pred_t = tf.cast(pred_t, tf.uint8)
+            ImageUtils.plot_image(pred_t, name, inc)
 
         worksheet.write(inc+1, 0, str(avg_psnr / inc))
         worksheet.write(inc+2, 0, str(avg_ssim / inc))

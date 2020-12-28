@@ -9,6 +9,24 @@ This file provides image operation tools.
 
 class ImageUtils:
     @staticmethod
+    def plot_image(img, dir: str, inc=0):
+        if not os.path.exists('../result/' + str(dir) + '/'):
+            os.makedirs('../result/' + str(dir) + '/')
+
+        plt.figure()
+        file_path = '../result/' + str(dir) + '/' + str(inc) + '.jpg'
+        img = tf.squeeze(img, axis=0)
+
+        img = (img + 1) / 2
+
+        plt.imshow(img)
+        plt.xticks([])
+        plt.yticks([])
+        plt.axis('off')
+        plt.tight_layout()
+        plt.savefig(file_path, dpi=600)
+
+    @staticmethod
     def plot_images(img_nums: int, z_nums: int, img_lists: List, is_save=False, epoch_index=-1):
         """
         plot some images
