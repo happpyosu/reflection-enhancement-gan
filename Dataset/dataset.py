@@ -19,7 +19,7 @@ class DatasetFactory:
         elif name == 'RealEvalDataset':
             return _EvalDataset(mode='real', batch_size=1).get_tf_dataset()
         elif name == 'SynEvalDataset':
-            return _SynDataset(mode='syn', batch_size=1).get_tf_dataset()
+            return _EvalDataset(mode='syn', batch_size=1).get_tf_dataset()
 
         else:
             raise ValueError("Invalid dataset name, got '" + name + "', please check spelling mistakes.")
@@ -52,6 +52,7 @@ class _EvalDataset:
 
         # list the file list in the m dir
         self.file_list = os.listdir(self.m_dir)
+        self.file_list = sorted(self.file_list, key=lambda x: int(x[0:-4]))
 
         # create the tf dataset for training
         self._tf_dataset = tf.data.Dataset. \
