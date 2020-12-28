@@ -561,7 +561,7 @@ class EncoderDecoderRemovalModel:
         self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=8)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # optimizer
@@ -573,7 +573,7 @@ class EncoderDecoderRemovalModel:
         # config
         self.EPOCH = 100
         self.inc = 0
-        self.save_every = 10
+        self.save_every = 5
         self.output_every = 2
 
     def save_weights(self):
