@@ -57,10 +57,12 @@ class EvaluatingRmModel:
     def psnr(self, pred, gt):
         psnr = MetricUtils.compute_psnr(pred, gt)
         print('[PSNR]: PSNR: + ' + str(psnr))
+        return psnr
 
     def ssim(self, pred, gt):
         ssim = MetricUtils.compute_ssim(pred, gt)
         print('[SSIM]: SSIM: + ' + str(ssim))
+        return ssim
 
 
 class MetricProcessor:
