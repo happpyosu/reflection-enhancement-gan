@@ -9,12 +9,15 @@ This file provides image operation tools.
 
 class ImageUtils:
     @staticmethod
-    def plot_image(img, dir: str, inc=0):
+    def plot_image(img, dir: str, mode='syn', inc=0):
         if not os.path.exists('../result/' + str(dir) + '/'):
             os.makedirs('../result/' + str(dir) + '/')
 
+        if not os.path.exists('../result/' + str(dir) + '/' + mode):
+            os.makedirs('../result/' + str(dir) + '/' + mode)
+
         plt.figure()
-        file_path = '../result/' + str(dir) + '/' + str(inc) + '.jpg'
+        file_path = '../result/' + str(dir) + '/' + mode + '/' + str(inc) + '.jpg'
         img = tf.squeeze(img, axis=0)
 
         img = (img + 1) / 2

@@ -58,13 +58,11 @@ class EvaluatingRmModel:
             worksheet.write(inc, 0, str(p))
             worksheet.write(inc, 1, str(s))
 
-            # pred_t = 255 * ((pred_t + 1) / 2)
-            # pred_t = tf.cast(pred_t, tf.uint8)
-            ImageUtils.plot_image(pred_t, name, inc)
+            ImageUtils.plot_image(pred_t, name, dataset_type, inc)
 
         worksheet.write(inc+1, 0, str(avg_psnr / inc))
         worksheet.write(inc+2, 0, str(avg_ssim / inc))
-        workbook.save('../result/' + name + '/' + name + '.xls')
+        workbook.save('../result/' + name + '/' + dataset_type + '/' + name + '.xls')
         print('[AVG PSNR]: AVG PSNR: + ' + str(avg_psnr / inc))
         print('[AVG SSIM]: AVG SSIM: + ' + str(avg_ssim / inc))
         # elif dataset_type == 'syn':
