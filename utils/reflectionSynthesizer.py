@@ -218,8 +218,8 @@ class ReflectionSynthesizer:
 
 # test
 if __name__ == '__main__':
-    s = ReflectionSynthesizer(out_path='../SynDataset/out/1')
-    for i in range(200):
+    s = ReflectionSynthesizer(out_path='../SynDataset/out/eval-syn')
+    for i in range(256):
         print(i)
         next(s)
 
