@@ -6,6 +6,7 @@ from Dataset.dataset import DatasetFactory
 from Network import RmModel
 from utils.metricUtils import MetricUtils
 from utils import gpuutils
+from utils.imageUtils import ImageUtils
 
 
 class EvaluatingRmModel:
@@ -18,22 +19,34 @@ class EvaluatingRmModel:
     def evalRmModel(self, weight_epoch: int, which_model=0, dataset_type='real'):
         if which_model == 0:
             rm = RmModel.PerceptionRemovalModel()
+            name = 'percepRm'
         elif which_model == 1:
             rm = RmModel.BidirectionalRemovalModel()
+            name = 'birdirRm'
         elif which_model == 2:
             rm = RmModel.MisalignedRemovalModel()
+            name = 'misalignedRm'
         elif which_model == 3:
             rm = RmModel.EncoderDecoderRemovalModel()
+            name = 'EncoderDecoderRm'
         else:
             raise NotImplementedError("EvaluatingRmModel: No Such Rm model!")
 
         rm.load_weights(epoch=weight_epoch)
 
+        inc = 0
+        avg_psnr = 0
+        avg_ssim = 0
+
         if dataset_type == 'real':
             for t, r, m in self.eval_real_dataset:
+                inc += 1
                 pred_t = rm.forward(m)
-                self.psnr(pred_t, t)
-                self.ssim(pred_t, t)
+                ImageUtils.save_image_tensor(pred_t, name, inc)
+                avg_psnr += self.psnr(pred_t, t)
+                avg_ssim += self.ssim(pred_t, t)
+        print('[AVG PSNR]: AVG PSNR: + ' + str(avg_psnr))
+        print('[AVG SSIM]: AVG SSIM: + ' + str(avg_ssim))
         # elif dataset_type == 'syn':
         #     for t, r, m in self.eval_syn_dataset:
         #         pred_t = rm.forward(m)

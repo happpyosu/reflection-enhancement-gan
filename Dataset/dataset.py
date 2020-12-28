@@ -57,7 +57,7 @@ class _EvalDataset:
         self._tf_dataset = tf.data.Dataset. \
             from_tensor_slices(self.file_list). \
             map(self._map_fun, tf.data.experimental.AUTOTUNE). \
-            batch(batch_size=self.batch_size, drop_remainder=True).shuffle(50, reshuffle_each_iteration=True)
+            batch(batch_size=self.batch_size, drop_remainder=True)
 
     def _map_fun(self, x):
         t_path_tensor = self.t_dir + x

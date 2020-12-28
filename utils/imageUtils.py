@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from typing import List
-
+import tensorflow as tf
+import os
 '''
 This file provides image operation tools.
 '''
@@ -37,3 +38,20 @@ class ImageUtils:
             plt.subplots_adjust(wspace=0, hspace=0)
             plt.savefig('../save/' + str(epoch_index) + '.jpg', dpi=600)
 
+    @staticmethod
+    def save_image_tensor(img_tensor, dir: str, inc=0):
+        """
+        Save the image tensor. The batch dimension should be one.
+        :param dir: which dir to save
+        :param inc: image index.
+        :param img_tensor: image tensor to save
+        :return: None
+        """
+        if not os.path.exists('../result/' + str(dir) + '/'):
+            os.makedirs('../result/' + str(dir) + '/')
+
+        file_path = '../result/' + str(dir) + '/' + str(inc) + '.jpg'
+        img_tensor = tf.squeeze(img_tensor, axis=0)
+        img = tf.image.encode_jpeg(img_tensor)
+        with tf.io.gfile.GFile(file_path, 'wb') as f:
+            f.write(img.numpy())
