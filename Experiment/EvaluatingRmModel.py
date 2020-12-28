@@ -14,7 +14,7 @@ class EvaluatingRmModel:
 
         # evaluation dataset of real data and syn dataset
         self.eval_real_dataset = DatasetFactory.get_dataset_by_name(name='RealEvalDataset')
-        # self.eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
+        self.eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
 
     def evalRmModel(self, weight_epoch: int, which_model=0, dataset_type='real'):
         if which_model == 0:
@@ -42,19 +42,26 @@ class EvaluatingRmModel:
         avg_ssim = 0
 
         if dataset_type == 'real':
-            for t, r, m in self.eval_real_dataset:
-                inc += 1
-                pred_t = rm.forward(m)
-                p = self.psnr(pred_t, t)
-                s = self.ssim(pred_t, t)
-                avg_psnr += p
-                avg_ssim += s
-                worksheet.write(inc, 0, str(p))
-                worksheet.write(inc, 1, str(s))
+            ds = self.eval_real_dataset
+        elif dataset_type == 'syn':
+            ds = self.eval_syn_dataset
+        else:
+            raise NotImplementedError
 
-                pred_t = 255 * ((pred_t + 1) / 2)
-                pred_t = tf.cast(pred_t, tf.uint8)
-                ImageUtils.save_image_tensor(pred_t, name, inc)
+        for t, r, m in ds:
+            inc += 1
+            pred_t = rm.forward(m)
+            p = self.psnr(pred_t, t)
+            s = self.ssim(pred_t, t)
+            avg_psnr += p
+            avg_ssim += s
+            worksheet.write(inc, 0, str(p))
+            worksheet.write(inc, 1, str(s))
+
+            pred_t = 255 * ((pred_t + 1) / 2)
+            pred_t = tf.cast(pred_t, tf.uint8)
+            ImageUtils.save_image_tensor(pred_t, name, inc)
+
         worksheet.write(inc+1, 0, str(avg_psnr / inc))
         worksheet.write(inc+2, 0, str(avg_ssim / inc))
         workbook.save('../result/' + name + '/' + name + '.xls')
@@ -113,4 +120,4 @@ class MetricProcessorHolder:
 if __name__ == '__main__':
     gpuutils.use_cpu()
     E = EvaluatingRmModel()
-    E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='real')
+    E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='syn')
