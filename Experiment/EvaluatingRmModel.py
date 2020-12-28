@@ -1,6 +1,6 @@
 import tensorflow as tf
 import sys
-
+import xlwt
 sys.path.append('../')
 from Dataset.dataset import DatasetFactory
 from Network import RmModel
@@ -34,6 +34,9 @@ class EvaluatingRmModel:
 
         rm.load_weights(epoch=weight_epoch)
 
+        workbook = xlwt.Workbook(encoding='utf-8')
+        worksheet = workbook.add_sheet(name)
+
         inc = 0
         avg_psnr = 0
         avg_ssim = 0
@@ -42,15 +45,21 @@ class EvaluatingRmModel:
             for t, r, m in self.eval_real_dataset:
                 inc += 1
                 pred_t = rm.forward(m)
-                avg_psnr += self.psnr(pred_t, t)
-                avg_ssim += self.ssim(pred_t, t)
+                p = self.psnr(pred_t, t)
+                s = self.ssim(pred_t, t)
+                avg_psnr += p
+                avg_ssim += s
+                worksheet.write(inc, 0, str(p))
+                worksheet.write(inc, 1, str(s))
 
                 pred_t = 255 * ((pred_t + 1) / 2)
                 pred_t = tf.cast(pred_t, tf.uint8)
                 ImageUtils.save_image_tensor(pred_t, name, inc)
-
-        print('[AVG PSNR]: AVG PSNR: + ' + str(avg_psnr))
-        print('[AVG SSIM]: AVG SSIM: + ' + str(avg_ssim))
+        worksheet.write(inc+1, 0, str(avg_psnr / inc))
+        worksheet.write(inc+2, 0, str(avg_ssim / inc))
+        workbook.save('../result/' + name + '/' + name + '.xls')
+        print('[AVG PSNR]: AVG PSNR: + ' + str(avg_psnr / inc))
+        print('[AVG SSIM]: AVG SSIM: + ' + str(avg_ssim / inc))
         # elif dataset_type == 'syn':
         #     for t, r, m in self.eval_syn_dataset:
         #         pred_t = rm.forward(m)
