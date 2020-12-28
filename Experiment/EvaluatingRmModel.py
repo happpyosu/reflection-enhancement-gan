@@ -43,7 +43,7 @@ class EvaluatingRmModel:
                 inc += 1
                 pred_t = rm.forward(m)
                 pred_t = 255 * ((pred_t + 1) / 2)
-                tf.cast(pred_t, tf.uint8)
+                pred_t = tf.cast(pred_t, tf.uint8)
                 ImageUtils.save_image_tensor(pred_t, name, inc)
                 avg_psnr += self.psnr(pred_t, t)
                 avg_ssim += self.ssim(pred_t, t)
