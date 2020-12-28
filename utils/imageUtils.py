@@ -25,6 +25,7 @@ class ImageUtils:
         plt.axis('off')
         plt.tight_layout()
         plt.savefig(file_path, dpi=600)
+        plt.close()
 
     @staticmethod
     def plot_images(img_nums: int, z_nums: int, img_lists: List, is_save=False, epoch_index=-1):
