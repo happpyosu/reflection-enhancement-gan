@@ -42,6 +42,8 @@ class EvaluatingRmModel:
             for t, r, m in self.eval_real_dataset:
                 inc += 1
                 pred_t = rm.forward(m)
+                pred_t = 255 * ((pred_t + 1) / 2)
+                tf.cast(pred_t, tf.uint8)
                 ImageUtils.save_image_tensor(pred_t, name, inc)
                 avg_psnr += self.psnr(pred_t, t)
                 avg_ssim += self.ssim(pred_t, t)
@@ -96,6 +98,6 @@ class MetricProcessorHolder:
 
 
 if __name__ == '__main__':
-    gpuutils.which_gpu_to_use(1)
+    gpuutils.use_cpu()
     E = EvaluatingRmModel()
     E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='real')

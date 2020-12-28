@@ -18,3 +18,12 @@ def which_gpu_to_use(gpu_index):
     print("\033[1;34m" + "[gpu]: all GPU devices: " + str(os.environ['CUDA_VISIBLE_DEVICES']) + " \033[0m")
     tf.config.experimental.set_visible_devices(devices=gpus[gpu_index], device_type='GPU')
     print("\033[1;34m" + "[gpu]: config to use " + str(gpu_index) + " gpu only" + " \033[0m")
+
+
+def use_cpu():
+    """
+    config to use cpu only.
+    :return:
+    """
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
