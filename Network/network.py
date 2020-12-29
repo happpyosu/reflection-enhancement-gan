@@ -168,7 +168,7 @@ class Network:
         us5 = Component.get_deconv_block(128, 32)(tf.concat([us4, ds2], axis=3))
 
         t_layer = Component.get_deconv_block(64, 3, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
-        r_layer = Component.get_deconv_block(64, 4, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
+        r_layer = Component.get_deconv_block(64, 3, norm=False, non_linear='tanh')(tf.concat([us5, ds1], axis=3))
 
         return tf.keras.Model(in_layer, [t_layer, r_layer, mu, log_var])
 
