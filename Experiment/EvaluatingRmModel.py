@@ -116,6 +116,7 @@ class MetricProcessorHolder:
 
 
 if __name__ == '__main__':
-    gpuutils.use_cpu()
+    gpuutils.which_gpu_to_use(1)
+    # gpuutils.use_cpu()
     E = EvaluatingRmModel()
-    E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='syn')
+    E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='real')
