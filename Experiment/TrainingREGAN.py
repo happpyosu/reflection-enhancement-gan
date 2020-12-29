@@ -311,7 +311,7 @@ class ReflectionGAN:
 
             # train G and RM
             # l1 loss
-            l1_loss_rm = self.l1_loss(pred_t1, t1) + self.l1_loss(pred_r1, r1)
+            l1_loss_rm = 10 * self.l1_loss(pred_t1, t1) + 10 * self.l1_loss(pred_r1, r1)
             fake_score1, fake_score2 = self.D3(pred_t1)
             gan_loss_rm = tf.reduce_mean((fake_score1 - tf.ones_like(fake_score1)) ** 2) + \
                          tf.reduce_mean((fake_score2 - tf.ones_like(fake_score2)) ** 2)
