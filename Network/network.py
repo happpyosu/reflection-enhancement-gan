@@ -172,8 +172,6 @@ class Network:
 
         return tf.keras.Model(in_layer, [t_layer, r_layer, mu, log_var])
 
-
-
     @staticmethod
     def build_optical_synthesis_generator(img_size=256, noise_dim=4):
         """
