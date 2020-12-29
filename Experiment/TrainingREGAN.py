@@ -334,12 +334,11 @@ class ReflectionGAN:
             self.optimizer_RM.apply_gradients(zip(grad_rm, self.RM.trainable_variables))
 
         with tf.GradientTape() as rm_tape, tf.GradientTape() as E_tape:
-            random_z = tf.random.normal(shape=(1, 1, 1, self.noise_dim))
-            z = tf.tile(random_z, [1, self.img_size, self.img_size, 1])
-
+            pred_t1, pred_r1, pred_mu, pred_var = self.RM(m1)
             E_inp = tf.concat([pred_t1, pred_r1, m1], axis=3)
             mu_, var_ = self.E(E_inp, training=True)
-            z_Loss = 0.5 * tf.reduce_mean(tf.abs(random_z - mu_))
+
+            z_Loss = 0.5 * tf.reduce_mean(tf.abs(pred_mu - mu_))
 
             grad_rm = rm_tape.gradient(z_Loss, self.RM.trainable_variables)
             grad_E = E_tape.gradient(z_Loss, self.E.trainable_variables)
