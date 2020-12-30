@@ -4,6 +4,7 @@ import xlwt
 sys.path.append('../')
 from Dataset.dataset import DatasetFactory
 from Network import RmModel
+from Experiment import TrainingREGAN
 from utils.metricUtils import MetricUtils
 from utils import gpuutils
 from utils.imageUtils import ImageUtils
@@ -29,6 +30,9 @@ class EvaluatingRmModel:
         elif which_model == 3:
             rm = RmModel.EncoderDecoderRemovalModel()
             name = 'EncoderDecoderRm'
+        elif which_model == 4:
+            rm = TrainingREGAN.ReflectionGAN()
+            name = 'reflectionGAN'
         else:
             raise NotImplementedError("EvaluatingRmModel: No Such Rm model!")
 
@@ -119,4 +123,4 @@ if __name__ == '__main__':
     gpuutils.which_gpu_to_use(1)
     # gpuutils.use_cpu()
     E = EvaluatingRmModel()
-    E.evalRmModel(which_model=0, weight_epoch=99, dataset_type='real')
+    E.evalRmModel(which_model=4, weight_epoch=100, dataset_type='real')

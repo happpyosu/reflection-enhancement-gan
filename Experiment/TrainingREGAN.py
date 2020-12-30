@@ -77,6 +77,10 @@ class ReflectionGAN:
         z = tf.tile(z, [1, self.img_size, self.img_size, 1])
         return z
 
+    def forward(self, m):
+        pred_t, _, _, _ = self.RM(m)
+        return pred_t
+
     def output_middle_result(self, rows=5, cols=5):
         # get a test batch
         iter = self.val_dataset.__iter__()
@@ -134,8 +138,9 @@ class ReflectionGAN:
         self.RM.save_weights('../save/' + 'gan_Rm_' + str(self.inc) + '.h5')
 
     def load_weights(self, epoch: int):
-        self.G.load_weights('../save/' + 'G_' + str(epoch) + '.h5')
-        # self.E.load_weights('../save/' + 'E_' + str(epoch) + '.h5')
+        self.G.load_weights('../save/' + 'gan_G_' + str(epoch) + '.h5')
+        self.E.load_weights('../save/' + 'gan_E_' + str(epoch) + '.h5')
+        self.RM.load_weights('../save/' + 'gan_Rm_' + str(epoch) + '.h5')
 
     def forward_G(self, t, r, z):
         cat_z = tf.concat([t, r, z], axis=3)
@@ -333,18 +338,18 @@ class ReflectionGAN:
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
             self.optimizer_RM.apply_gradients(zip(grad_rm, self.RM.trainable_variables))
 
-        with tf.GradientTape() as rm_tape, tf.GradientTape() as E_tape:
-            pred_t1, pred_r1, pred_mu, pred_var = self.RM(m1)
-            E_inp = tf.concat([pred_t1, pred_r1, m1], axis=3)
-            mu_, var_ = self.E(E_inp, training=True)
-
-            z_Loss = 0.5 * tf.reduce_mean(tf.abs(pred_mu - mu_))
-
-            grad_rm = rm_tape.gradient(z_Loss, self.RM.trainable_variables)
-            grad_E = E_tape.gradient(z_Loss, self.E.trainable_variables)
-
-            self.optimizer_RM.apply_gradients(zip(grad_rm, self.RM.trainable_variables))
-            self.optimizer_E.apply_gradients(zip(grad_E, self.E.trainable_variables))
+        # with tf.GradientTape() as rm_tape, tf.GradientTape() as E_tape:
+        #     pred_t1, pred_r1, pred_mu, pred_var = self.RM(m1)
+        #     E_inp = tf.concat([pred_t1, pred_r1, m1], axis=3)
+        #     mu_, var_ = self.E(E_inp, training=True)
+        #
+        #     z_Loss = 0.5 * tf.reduce_mean(tf.abs(pred_mu - mu_))
+        #
+        #     grad_rm = rm_tape.gradient(z_Loss, self.RM.trainable_variables)
+        #     grad_E = E_tape.gradient(z_Loss, self.E.trainable_variables)
+        #
+        #     self.optimizer_RM.apply_gradients(zip(grad_rm, self.RM.trainable_variables))
+        #     self.optimizer_E.apply_gradients(zip(grad_E, self.E.trainable_variables))
 
 
 if __name__ == '__main__':
