@@ -2,6 +2,7 @@ import sys
 sys.path.append('../')
 from Experiment.TrainingREGAN import ReflectionGAN
 from utils.imageUtils import ImageUtils
+from utils import gpuutils
 from Dataset.dataset import DatasetFactory
 import tensorflow as tf
 import shutil
@@ -119,6 +120,7 @@ class ReflectionGANTest:
 
 
 if __name__ == '__main__':
+    gpuutils.which_gpu_to_use(1)
     T = ReflectionGANTest(which_epoch=5)
     T.rand_generate()
     # T.modal_transfer(idx1=286, idx2=631)
