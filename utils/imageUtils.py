@@ -27,7 +27,7 @@ class ImageUtils:
         plt.yticks([])
         plt.axis('off')
         plt.tight_layout()
-        plt.savefig(file_path, dpi=600)
+        plt.savefig(file_path, dpi=300)
         plt.close()
 
     @staticmethod

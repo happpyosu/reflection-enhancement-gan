@@ -30,6 +30,24 @@ class ReflectionGANTest:
         # test set
         # self.testSet = DatasetFactory.get_dataset_by_name("TestDataset")
 
+    def rand_generate(self, times_per_image=10):
+        """
+        randomly generate the reflection layer, with the transmission layer kept all zero
+        :param times_per_image: generation times for each image in the test dataset
+        :param r: reflection layer
+        :return:
+        """
+        all_zero_t = tf.zeros(shape=(1, 256, 256, 3), dtype=tf.float32)
+        eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
+        inc = 0
+
+        for t, r, m in eval_syn_dataset:
+            for _ in range(times_per_image):
+                fake = self.gan.forward_G_with_random_noise(all_zero_t, r)
+                inc += 1
+                print(inc)
+                ImageUtils.plot_image(fake, dir='random-gen', mode='syn', inc=inc)
+
     def modal_transfer(self, idx1: int, idx2: int):
         """
         Test the modal transfer function. In the dataset, assume we have two sets of image pair
@@ -99,5 +117,6 @@ class ReflectionGANTest:
 
 
 if __name__ == '__main__':
-    T = ReflectionGANTest(which_epoch=28)
-    T.modal_transfer(idx1=286, idx2=631)
+    T = ReflectionGANTest(which_epoch=15)
+    T.rand_generate()
+    # T.modal_transfer(idx1=286, idx2=631)

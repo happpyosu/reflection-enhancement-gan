@@ -142,6 +142,11 @@ class ReflectionGAN:
         self.E.load_weights('../save/' + 'gan_E_' + str(epoch) + '.h5')
         self.RM.load_weights('../save/' + 'gan_Rm_' + str(epoch) + '.h5')
 
+    def forward_G_with_random_noise(self, t, r):
+        z = self._gen_noise()
+        fake = self.forward_G(t, r, z)
+        return fake
+
     def forward_G(self, t, r, z):
         cat_z = tf.concat([t, r, z], axis=3)
         fake_m = self.G(cat_z)
