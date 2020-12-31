@@ -33,7 +33,7 @@ class ReflectionGANTest:
         # test set
         # self.testSet = DatasetFactory.get_dataset_by_name("TestDataset")
 
-    def rand_generate(self, times_per_image=10):
+    def rand_generate(self, times_per_image=20):
         """
         randomly generate the reflection layer, with the transmission layer kept all zero
         :param times_per_image: generation times for each image in the test dataset
