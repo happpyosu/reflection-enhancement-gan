@@ -32,6 +32,9 @@ class ReflectionGAN:
         self.img_size = 256
         self.epoch = 100
 
+        # eps
+        self.EPS = 0.0001
+
         # models
         self.D1 = Network.build_discriminator(img_size=self.img_size)
         self.D2 = Network.build_discriminator(img_size=self.img_size)
@@ -99,7 +102,7 @@ class ReflectionGAN:
             for _ in range(cols):
                 z = self._gen_noise()
                 trn_concat = tf.concat([t, r, z], axis=3)
-                out = self.G(trn_concat)
+                out, _, _ = self.G(trn_concat)
                 out = tf.squeeze(out, axis=0)
                 img_list.append(out)
 
@@ -149,7 +152,7 @@ class ReflectionGAN:
 
     def forward_G(self, t, r, z):
         cat_z = tf.concat([t, r, z], axis=3)
-        fake_m = self.G(cat_z)
+        fake_m, _, _ = self.G(cat_z)
         return fake_m
 
     def forward_E(self, t, r, m):
@@ -199,7 +202,7 @@ class ReflectionGAN:
             # z = tf.tile(z, [1, self.img_size, self.img_size, 1])
 
             cat_trn_VAE = tf.concat([cat_tr_VAE, z], axis=3)
-            fake_m_VAE = self.G(cat_trn_VAE, training=True)
+            fake_m_VAE, _, _ = self.G(cat_trn_VAE, training=True)
 
             # D1 outputs 1 if fed with real image, else 0
             real_score1, real_score2 = self.D1(m1, training=True)
@@ -220,7 +223,7 @@ class ReflectionGAN:
 
             # generate fake images
             cat_trn_LR = tf.concat([cat_tr_LR, z], axis=3)
-            fake_m_LR = self.G(cat_trn_LR, training=True)
+            fake_m_LR, _, _ = self.G(cat_trn_LR, training=True)
 
             # get score on real and fake images
             real_score1, real_score2 = self.D2(m2)
@@ -256,7 +259,7 @@ class ReflectionGAN:
             # z = tf.tile(z, [1, self.img_size, self.img_size, 1])
 
             cat_trn_VAE = tf.concat([cat_tr_VAE, z], axis=3)
-            fake_m_VAE = self.G(cat_trn_VAE, training=True)
+            fake_m_VAE, _, _ = self.G(cat_trn_VAE, training=True)
             fake_D1_1, fake_D1_2 = self.D1(fake_m_VAE)
             GAN_loss_cVAE_1 = tf.reduce_mean((fake_D1_1 - tf.ones_like(fake_D1_1)) ** 2)
             GAN_loss_cVAE_2 = tf.reduce_mean((fake_D1_2 - tf.ones_like(fake_D1_2)) ** 2)
@@ -266,7 +269,7 @@ class ReflectionGAN:
             z = tf.tile(random_z, [1, self.img_size, self.img_size, 1])
 
             cat_trn_LR = tf.concat([cat_tr_LR, z], axis=3)
-            fake_m_LR = self.G(cat_trn_LR, training=True)
+            fake_m_LR, _, _ = self.G(cat_trn_LR, training=True)
             fake_D2_1, fake_D2_2 = self.D2(fake_m_LR)
 
             GAN_loss_cLR_1 = tf.reduce_mean((fake_D2_1 - tf.ones_like(fake_D2_1)) ** 2)
@@ -299,7 +302,23 @@ class ReflectionGAN:
             grad_G = G_tape1.gradient(z_recon_Loss, self.G.trainable_variables)
             self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
 
-            # step 6. ---------------------- Mode seeking term -----------------------
+        # step 6. ---------------------- Mode seeking term -----------------------
+        with tf.GradientTape() as G_tape:
+            z_1 = self._gen_noise()
+            z_2 = self._gen_noise()
+            inp_z1 = tf.concat([cat_tr_VAE, z_1], axis=3)
+            inp_z2 = tf.concat([cat_tr_VAE, z_2], axis=3)
+            fake_1, ker_1, mask1 = self.G(inp_z1)
+            fake_2, ker_2, mask2 = self.G(inp_z1)
+
+            ker_loss = tf.reduce_sum(tf.abs(inp_z1 - inp_z2)) / (
+                        self.l1_distance(ker_1, ker_2) + self.EPS)
+            mask_loss = tf.reduce_sum(tf.abs(inp_z1 - inp_z2)) / (
+                        self.l1_distance(mask1, mask2) + self.EPS)
+
+            ms_loss = ker_loss + mask_loss
+            grad_G = G_tape.gradient(ms_loss, self.G.trainable_variables)
+            self.optimizer_G.apply_gradients(zip(grad_G, self.G.trainable_variables))
 
         # Now training the RM net use the data both from the dataset and generation image from G
         with tf.GradientTape() as rm_tape, tf.GradientTape() as G_tape, tf.GradientTape() as D_tape:
@@ -328,7 +347,7 @@ class ReflectionGAN:
 
             z_ = self._gen_repar_noise(pred_mu, pred_var)
             g_inp = tf.concat([pred_t1, pred_r1, z_], axis=3)
-            pred_m1 = self.G(g_inp)
+            pred_m1, _, _ = self.G(g_inp)
 
             l1_loss_g = self.l1_loss(pred_m1, m1)
             score1, score2 = self.D1(pred_m1)
@@ -356,6 +375,14 @@ class ReflectionGAN:
         #     self.optimizer_RM.apply_gradients(zip(grad_rm, self.RM.trainable_variables))
         #     self.optimizer_E.apply_gradients(zip(grad_E, self.E.trainable_variables))
 
+    def l1_distance(self, x, y):
+        """
+        interface for calculating the l1 loss
+        :param x:
+        :param y:
+        :return:
+        """
+        return tf.reduce_mean(tf.abs(x - y))
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)

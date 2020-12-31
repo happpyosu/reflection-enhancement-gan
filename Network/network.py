@@ -231,7 +231,7 @@ class Network:
 
         out = layers.add([t_layer, r_layer])
 
-        return tf.keras.Model(in_layer, out)
+        return tf.keras.Model(in_layer, [out, kernel, alpha_mask])
 
     @staticmethod
     def build_generator(img_size=256, noise_dim=4):
