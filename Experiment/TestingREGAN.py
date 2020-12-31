@@ -40,7 +40,7 @@ class ReflectionGANTest:
         :param r: reflection layer
         :return:
         """
-        all_zero_t = tf.zeros(shape=(1, 256, 256, 3), dtype=tf.float32)
+        all_zero_t = tf.zeros(shape=(1, 256, 256, 3), dtype=tf.float32) - 1
         eval_syn_dataset = DatasetFactory.get_dataset_by_name(name='SynEvalDataset')
         inc = 0
 
