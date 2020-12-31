@@ -311,10 +311,10 @@ class ReflectionGAN:
             fake_1, ker_1, mask1 = self.G(inp_z1)
             fake_2, ker_2, mask2 = self.G(inp_z1)
 
-            ker_loss = 0.01 * tf.reduce_sum(tf.abs(inp_z1 - inp_z2)) / (
-                        self.l1_distance(ker_1, ker_2) + self.EPS)
-            mask_loss = 0.01 * tf.reduce_sum(tf.abs(inp_z1 - inp_z2)) / (
-                        self.l1_distance(mask1, mask2) + self.EPS)
+            ker_loss = 0.01 * tf.reduce_sum(self.l2_distance(z_1, z_2)) / (
+                        self.l2_distance(ker_1, ker_2) + self.EPS)
+            mask_loss = 0.01 * tf.reduce_sum(self.l2_distance(z_1, z_2)) / (
+                        self.l2_distance(mask1, mask2) + self.EPS)
 
             ms_loss = ker_loss + mask_loss
             grad_G = G_tape.gradient(ms_loss, self.G.trainable_variables)
@@ -383,6 +383,15 @@ class ReflectionGAN:
         :return:
         """
         return tf.reduce_mean(tf.abs(x - y))
+
+    def l2_distance(self, x, y):
+        """
+        calculating the l2 loss
+        :param x:
+        :param y:
+        :return:
+        """
+        return tf.reduce_mean((x - y) ** 2)
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)
