@@ -121,6 +121,6 @@ class ReflectionGANTest:
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(1)
-    T = ReflectionGANTest(which_epoch=5)
+    T = ReflectionGANTest(which_epoch=10)
     T.rand_generate()
     # T.modal_transfer(idx1=286, idx2=631)
