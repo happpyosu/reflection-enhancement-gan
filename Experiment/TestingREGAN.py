@@ -45,6 +45,8 @@ class ReflectionGANTest:
         inc = 0
 
         for t, r, m in eval_syn_dataset:
+            inc += 1
+            ImageUtils.plot_image(r, dir='random-gen', mode='syn', inc=inc)
             for _ in range(times_per_image):
                 fake = self.gan.forward_G_with_random_noise(all_zero_t, r)
                 inc += 1
