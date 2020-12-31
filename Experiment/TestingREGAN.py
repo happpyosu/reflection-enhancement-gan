@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../')
 from Experiment.TrainingREGAN import ReflectionGAN
 from utils.imageUtils import ImageUtils
 from Dataset.dataset import DatasetFactory
