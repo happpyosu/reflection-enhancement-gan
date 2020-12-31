@@ -119,6 +119,6 @@ class ReflectionGANTest:
 
 
 if __name__ == '__main__':
-    T = ReflectionGANTest(which_epoch=15)
+    T = ReflectionGANTest(which_epoch=5)
     T.rand_generate()
     # T.modal_transfer(idx1=286, idx2=631)
