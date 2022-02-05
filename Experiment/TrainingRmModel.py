@@ -16,6 +16,8 @@ class TrainingRmModel:
             self.model = Rm.BidirectionalRemovalModel()
         elif which_model == 2:
             self.model = Rm.MisalignedRemovalModel()
+        elif which_model == 3:
+            self.model = Rm.EncoderDecoderRemovalModel()
 
     def train(self):
         self.model.start_train_task()
@@ -23,7 +25,7 @@ class TrainingRmModel:
 
 if __name__ == '__main__':
     gpuutils.which_gpu_to_use(0)
-    rm = TrainingRmModel(2)
+    rm = TrainingRmModel(0)
     rm.train()
 
 

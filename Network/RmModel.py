@@ -72,8 +72,25 @@ class PerceptionRemovalModel:
             if self.inc & self.save_every:
                 self.save_weights()
 
+    def forward(self, m):
+        # extract hyper-col feature
+        features_list = self.feature_extractor(m)
+        features = m
+
+        for f in features_list:
+            resized = tf.image.resize(f, (self.img_size, self.img_size))
+            features = tf.concat([features, resized], axis=3)
+
+        # forward
+        pred = self.rm(features, training=True)
+        pred_t, pred_r = tf.split(pred, num_or_size_splits=2, axis=3)
+        return pred_t
+
     def save_weights(self):
         self.rm.save_weights('../save/' + 'percpRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'percpRm_' + str(epoch) + '.h5')
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
@@ -260,6 +277,20 @@ class BidirectionalRemovalModel:
         self.H.save_weights('../save/' + 'bidirRm_H_' + str(self.inc) + '.h5')
         self.g1.save_weights('../save/' + 'bidirRm_g1_' + str(self.inc) + '.h5')
 
+    def load_weights(self, epoch: int):
+        self.g0.load_weights('../save/' + 'bidirRm_g0_' + str(epoch) + '.h5')
+        self.H.load_weights('../save/' + 'bidirRm_H_' + str(epoch) + '.h5')
+        self.g1.load_weights('../save/' + 'bidirRm_g1_' + str(epoch) + '.h5')
+
+    def forward(self, m):
+        pred_B = self.g0(m)
+        IB = tf.concat([m, pred_B], axis=3)
+        pred_R = self.H(IB)
+        IR = tf.concat([m, pred_R], axis=3)
+        pred_B1 = self.g1(IR)
+
+        return pred_B1
+
     def start_train_task(self):
         for _ in range(self.EPOCH):
             self.inc += 1
@@ -286,9 +317,9 @@ class BidirectionalRemovalModel:
             img_list.append(m1)
 
             pred_B = self.g0(m)
-            IB = tf.concat([m, t], axis=3)
+            IB = tf.concat([m, pred_B], axis=3)
             pred_R = self.H(IB)
-            IR = tf.concat([m, r], axis=3)
+            IR = tf.concat([m, pred_R], axis=3)
             pred_B1 = self.g1(IR)
 
             B0 = tf.squeeze(pred_B, axis=0)
@@ -312,11 +343,11 @@ class BidirectionalRemovalModel:
             pred_B = self.g0(m, training=True)
 
             # concat I with B, pass IB to H
-            IB = tf.concat([m, t], axis=3)
+            IB = tf.concat([m, pred_B], axis=3)
             pred_R = self.H(IB, training=True)
 
             # concat I with R, pass IR to g1
-            IR = tf.concat([m, r], axis=3)
+            IR = tf.concat([m, pred_R], axis=3)
             pred_B1 = self.g1(IR, training=True)
 
             # l2 loss for g0
@@ -400,6 +431,20 @@ class MisalignedRemovalModel:
 
     def save_weights(self):
         self.rm.save_weights('../save/' + 'misalignedRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'misalignedRm_' + str(epoch) + '.h5')
+
+    def forward(self, m):
+        # extract hyper-col feature
+        features_list = self.feature_extractor(m)
+        features = m
+        for f in features_list:
+            resized = tf.image.resize(f, (self.img_size, self.img_size))
+            features = tf.concat([features, resized], axis=3)
+        # forward
+        pred_t = self.rm(features, training=True)
+        return pred_t
 
     def output_middle_result(self, rows=5):
         iter = self.val_dataset.__iter__()
@@ -516,7 +561,7 @@ class EncoderDecoderRemovalModel:
         self.feature_extractor = Vgg19FeatureExtractor.build_vgg19_feature_extractor()
 
         # training dataset and test dataset
-        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=4)
+        self.train_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode="train", batch_size=8)
         self.val_dataset = DatasetFactory.get_dataset_by_name(name="RealDataset", mode='val')
 
         # optimizer
@@ -528,8 +573,40 @@ class EncoderDecoderRemovalModel:
         # config
         self.EPOCH = 100
         self.inc = 0
-        self.save_every = 10
+        self.save_every = 5
         self.output_every = 2
+
+    def save_weights(self):
+        self.rm.save_weights('../save/' + 'encoderDecoderRm_' + str(self.inc) + '.h5')
+
+    def load_weights(self, epoch: int):
+        self.rm.load_weights('../save/' + 'encoderDecoderRm_' + str(epoch) + '.h5')
+
+    def forward(self, m):
+        # forward
+        pred_t = self.rm(m)
+        return pred_t
+
+    def output_middle_result(self, rows=5):
+        iter = self.val_dataset.__iter__()
+        img_lists = []
+        for _ in range(rows):
+            img_list = []
+            t, r, m = next(iter)
+            t1 = tf.squeeze(t, axis=0)
+            r1 = tf.squeeze(r, axis=0)
+            m1 = tf.squeeze(m, axis=0)
+            img_list.append(t1)
+            img_list.append(r1)
+            img_list.append(m1)
+
+            # forward
+            pred_t = self.rm(m)
+            pred_t = tf.squeeze(pred_t, axis=0)
+            img_list.append(pred_t)
+            img_lists.append(img_list)
+
+        ImageUtils.plot_images(rows, 3 + 1, img_lists, is_save=True, epoch_index=self.inc)
 
     @tf.function
     def train_one_step(self, t, r, m):
