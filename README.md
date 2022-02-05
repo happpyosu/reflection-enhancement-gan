@@ -6,6 +6,7 @@ We proposed a gan-based reflection generation an removal framework, which aims t
 ### 1. Reflection generation
 - In generation task, our model can generate images with multi-modal reflection pattern while keep faithful to the given reflection layer.
 - The optical imaging process can be encoded into a prior distribution, which can be simply sampled to generate training data using the given images.
+
 ![image1](images/1.jpg)
 
 ### 2. Reflection Removal
